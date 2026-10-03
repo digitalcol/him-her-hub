@@ -71,6 +71,8 @@ async function seed(sql: Sql) {
     await sql`insert into circle_memberships (id, circle_id, couple_id, status) values (${`m-${id}`}, 'orion', ${id}, 'ACTIVE')`;
     await sql`insert into ledger (id, circle_id, kind, amount, note)
       values (${`pay-${id}`}, 'orion', 'CONTRIBUTION', 10000, ${name})`;
+    await sql`insert into contributions (id, circle_id, couple_id, expected_amount, status, paid_at, recorded_by)
+      values (${`con-${id}`}, 'orion', ${id}, 10000, 'PAID', now(), 'seed')`;
   }
 
   await sql`insert into couples (id, name, area, about, interests, referral, status, photo_consent)
@@ -97,6 +99,16 @@ async function ready() {
   assertActor();
   const sql = await getSql();
   await seed(sql);
+  if (isPreviewMode() && dbSource === "pglite") {
+    await sql`insert into contributions (id, circle_id, couple_id, expected_amount, status, paid_at, recorded_by)
+      select 'con-' || m.couple_id, m.circle_id, m.couple_id, c.kitty_amount, 'PAID', now(), 'seed'
+      from circle_memberships m
+      join circles c on c.id = m.circle_id
+      where m.status = 'ACTIVE'
+        and not exists (
+          select 1 from contributions x where x.circle_id = m.circle_id and x.couple_id = m.couple_id
+        )`;
+  }
   await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
   return sql;
 }
@@ -160,7 +172,10 @@ export const getApplication = createServerFn({ method: "GET" })
     const people = await sql<{ first_name: string; profession: string | null; instagram: string | null }>`
       select first_name, profession, instagram from people where couple_id = ${data.id}
     `;
-    return { ...couple, label: displayStatus(couple.status, couple.assigned), people };
+    const notes = await sql<{ id: string; body: string }>`
+      select id, body from admin_notes where couple_id = ${data.id} order by created_at
+    `;
+    return { ...couple, label: displayStatus(couple.status, couple.assigned), people, notes };
   });
 
 export const setApplicationStatus = createServerFn({ method: "POST" })
@@ -180,6 +195,18 @@ export const submitApplication = createServerFn({ method: "POST" })
   .validator((data: unknown) => applicationInput.parse(data))
   .handler(async ({ data }) => {
     const sql = await ready();
+    const email = data.one.email.toLowerCase();
+    const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const hits = await sql<{ hits: number }>`
+      select hits from rate_limits where key = ${`apply:${email}`} and window_start > ${windowStart}
+    `;
+    if (Number(hits[0]?.hits ?? 0) >= 5) throw new Error("Too many applications from this email. Try again later.");
+    await sql`insert into rate_limits (key, hits, window_start)
+      values (${`apply:${email}`}, 1, now())
+      on conflict (key) do update set
+        hits = case when rate_limits.window_start < ${windowStart} then 1 else rate_limits.hits + 1 end,
+        window_start = case when rate_limits.window_start < ${windowStart} then now() else rate_limits.window_start end
+    `;
     const id = crypto.randomUUID();
     const name = `${data.one.first} & ${data.two.first}`;
     const interests = [...data.interests, data.organise].filter(Boolean).join(", ");
@@ -258,12 +285,23 @@ export const markKittyPaid = createServerFn({ method: "POST" })
     const circles = await sql<{ kitty_amount: number }>`select kitty_amount from circles where id = ${data.circleId}`;
     const amount = circles[0]?.kitty_amount;
     if (!amount) throw new Error("Circle not found.");
-    const already = await sql<{ n: number }>`
-      select count(*) as n from ledger where circle_id = ${data.circleId} and kind = 'CONTRIBUTION' and note = ${data.coupleId}
-    `;
-    if (Number(already[0]?.n) > 0) return { ok: true };
-    await sql`insert into ledger (id, circle_id, kind, amount, note)
-      values (${crypto.randomUUID()}, ${data.circleId}, 'CONTRIBUTION', ${amount}, ${data.coupleId})`;
+    await sql.query("begin");
+    try {
+      const already = await sql<{ n: number }>`
+        select count(*) as n from contributions where circle_id = ${data.circleId} and couple_id = ${data.coupleId} and status = 'PAID'
+      `;
+      if (Number(already[0]?.n) === 0) {
+        const contributionId = crypto.randomUUID();
+        await sql`insert into contributions (id, circle_id, couple_id, expected_amount, status, paid_at, recorded_by)
+          values (${contributionId}, ${data.circleId}, ${data.coupleId}, ${amount}, 'PAID', now(), 'admin')`;
+        await sql`insert into ledger (id, circle_id, kind, amount, note, reference_type, reference_id, created_by)
+          values (${crypto.randomUUID()}, ${data.circleId}, 'CONTRIBUTION', ${amount}, ${data.coupleId}, 'CONTRIBUTION', ${contributionId}, 'admin')`;
+      }
+      await sql.query("commit");
+    } catch (error) {
+      await sql.query("rollback");
+      throw error;
+    }
     return { ok: true };
   });
 
@@ -272,8 +310,32 @@ export const addExpense = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const sql = await ready();
     if (!Number.isFinite(data.amount) || data.amount <= 0) throw new Error("Amount must be a positive number.");
-    await sql`insert into ledger (id, circle_id, kind, amount, note)
-      values (${crypto.randomUUID()}, ${data.circleId}, 'EXPENSE', ${Math.round(data.amount)}, ${data.note.trim()})`;
+    const expenseId = crypto.randomUUID();
+    const amount = Math.round(data.amount);
+    const note = data.note.trim();
+    if (!note) throw new Error("An expense needs a note.");
+    await sql.query("begin");
+    try {
+      await sql`insert into expenses (id, circle_id, amount, note, status)
+        values (${expenseId}, ${data.circleId}, ${amount}, ${note}, 'APPROVED')`;
+      await sql`insert into ledger (id, circle_id, kind, amount, note, reference_type, reference_id, created_by)
+        values (${crypto.randomUUID()}, ${data.circleId}, 'EXPENSE', ${amount}, ${note}, 'EXPENSE', ${expenseId}, 'admin')`;
+      await sql.query("commit");
+    } catch (error) {
+      await sql.query("rollback");
+      throw error;
+    }
+    return { ok: true };
+  });
+
+export const addAdminNote = createServerFn({ method: "POST" })
+  .validator((data: { coupleId: string; body: string }) => data)
+  .handler(async ({ data }) => {
+    const sql = await ready();
+    if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
+    const body = data.body.trim();
+    if (!body) throw new Error("The note is empty.");
+    await sql`insert into admin_notes (id, couple_id, body) values (${crypto.randomUUID()}, ${data.coupleId}, ${body})`;
     return { ok: true };
   });
 
@@ -356,5 +418,20 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
   const votes = await sql<{ couple_id: string; available: boolean }>`
     select couple_id, available from availability where event_id = 'e1'
   `;
-  return { circle, events, votes };
+  const paid = await sql<{ n: number }>`
+    select count(*) as n from contributions where circle_id = ${circleId} and status = 'PAID'
+  `;
+  const yours = await sql<{ status: string }>`
+    select status from contributions where circle_id = ${circleId} and couple_id = 'c1' and status = 'PAID' limit 1
+  `;
+  return {
+    circle,
+    events,
+    votes,
+    funding: {
+      paid: Number(paid[0]?.n ?? 0),
+      seats: Number(circle.capacity),
+      yours: yours[0] ? "Paid" : "Pending",
+    },
+  };
 });
