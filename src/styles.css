@@ -1,0 +1,130 @@
+@import "@fontsource/inter-tight/400.css";
+@import "@fontsource/inter-tight/500.css";
+@import "@fontsource/inter-tight/600.css";
+@import "@fontsource/inter-tight/800.css";
+@import "@fontsource/inter-tight/900.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Tight", "PingFang SC", "Hiragino Sans", "Noto Sans JP", "Noto Sans KR",
+    "Malgun Gothic", "Helvetica Neue", Arial, sans-serif;
+  --color-bg: #fcfcfa;
+  --color-fg: #111113;
+  --color-muted: #8a8a8f;
+  --color-soft: #5c5c62;
+  --color-line: #e3e3e3;
+  --color-pill: #f3f3f1;
+  --color-accent: #3157ff;
+  --shadow-float: 0 10px 30px rgb(17 17 19 / 0.08);
+  --text-mark: clamp(3.25rem, 9vw, 10rem);
+  --text-mark--line-height: 0.84;
+  --text-mark--letter-spacing: -0.065em;
+  --text-mark--font-weight: 900;
+  --tracking-index: 0.16em;
+  --radius-pill: 999px;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100svh;
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: #111113;
+    color: #fcfcfa;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+}
+
+.skip {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 40;
+  translate: 0 -150%;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  padding: 0.5rem 0.75rem;
+}
+
+.skip:focus {
+  translate: 0;
+}
+
+.home-stage {
+  display: grid;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .home-stage {
+    grid-template-columns: 1.35fr 0.9fr;
+    min-height: 0;
+    flex: 1;
+    gap: 2.5rem;
+  }
+}
+
+.lane-track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 1024px) {
+  .lane-up {
+    animation: lane-up 60s linear infinite;
+  }
+  .lane-down {
+    animation: lane-down 68s linear infinite;
+  }
+  .media-lanes:hover .lane-up,
+  .media-lanes:hover .lane-down,
+  .media-lanes:focus-within .lane-up,
+  .media-lanes:focus-within .lane-down {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes lane-up {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes lane-down {
+  from {
+    transform: translateY(-50%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lane-up,
+  .lane-down {
+    animation: none;
+  }
+}

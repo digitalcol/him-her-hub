@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: "Inter Tight";
+        src: url("file:///workspace/node_modules/@fontsource/inter-tight/files/inter-tight-latin-900-normal.woff")
+          format("woff");
+        font-weight: 900;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "Inter Tight";
+        src: url("file:///workspace/node_modules/@fontsource/inter-tight/files/inter-tight-latin-500-normal.woff")
+          format("woff");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        background: #fcfcfa;
+        color: #111113;
+      }
+      .card {
+        box-sizing: border-box;
+        width: 1200px;
+        height: 630px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lockup {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .rule {
+        width: 56px;
+        height: 4px;
+        background: #3157ff;
+        margin: 0 0 32px;
+      }
+      .word {
+        margin: 0;
+        font-family: "Inter Tight", sans-serif;
+        font-weight: 900;
+        font-size: 108px;
+        line-height: 0.86;
+        letter-spacing: -0.06em;
+        color: #111113;
+      }
+      .tag {
+        margin: 28px 0 0;
+        font-family: "Inter Tight", sans-serif;
+        font-weight: 500;
+        font-size: 30px;
+        line-height: 1.15;
+        letter-spacing: -0.022em;
+        color: #111113;
+      }
+      .place {
+        margin: 14px 0 0;
+        font-family: "Inter Tight", sans-serif;
+        font-weight: 500;
+        font-size: 22px;
+        line-height: 1.2;
+        letter-spacing: 0.01em;
+        color: #8a8a8f;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="lockup">
+        <div class="rule"></div>
+        <h1 class="word">HIM·HER·HUB</h1>
+        <p class="tag">A private social club for couples.</p>
+        <p class="place">Bangalore, India</p>
+      </div>
+    </div>
+  </body>
+</html>
