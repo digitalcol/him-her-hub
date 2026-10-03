@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { KittyStatement } from "@/components/kitty-statement";
-import { memberHome } from "@/lib/club.server";
+import { memberHome } from "@/lib/club-api";
 
 export const Route = createFileRoute("/members/kitty")({
   head: () => ({ meta: [{ title: "Kitty · Members · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),

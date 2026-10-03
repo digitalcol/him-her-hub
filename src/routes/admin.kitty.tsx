@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { KittyStatement } from "@/components/kitty-statement";
-import { addExpense, getCircle, listCircles, markKittyPaid } from "@/lib/club.server";
+import { addExpense, getCircle, listCircles, markKittyPaid } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/kitty")({
   validateSearch: (search: Record<string, unknown>): { circle: string } => ({

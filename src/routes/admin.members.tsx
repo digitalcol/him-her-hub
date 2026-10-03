@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { listApplications } from "@/lib/club.server";
+import { listApplications } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/members")({
   head: () => ({ meta: [{ title: "Members · Operations · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),

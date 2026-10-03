@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { submitApplication } from "@/lib/club.server";
+import { submitApplication } from "@/lib/club-api";
 
 export const Route = createFileRoute("/apply")({
   head: () => ({ meta: [{ title: "Waitlist · Him·Her·Hub" }] }),

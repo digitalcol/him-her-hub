@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { listCircles } from "@/lib/club.server";
+import { listCircles } from "@/lib/club-api";
 import { listNotices, sendNotice } from "@/lib/notices";
 
 export const Route = createFileRoute("/admin/notices")({

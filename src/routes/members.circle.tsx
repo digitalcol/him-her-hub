@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { memberHome } from "@/lib/club.server";
+import { memberHome } from "@/lib/club-api";
 
 export const Route = createFileRoute("/members/circle")({
   head: () => ({ meta: [{ title: "Your Circle · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),

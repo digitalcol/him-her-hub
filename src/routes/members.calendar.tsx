@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { memberHome } from "@/lib/club.server";
+import { memberHome } from "@/lib/club-api";
 import { proposeDate, setReply } from "@/lib/notices";
 
 export const Route = createFileRoute("/members/calendar")({

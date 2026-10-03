@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { assignCouple, getCircle, markKittyPaid, setWhatsApp } from "@/lib/club.server";
+import { assignCouple, getCircle, markKittyPaid, setWhatsApp } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/circles/$id")({
   head: () => ({ meta: [{ title: "Circle · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),

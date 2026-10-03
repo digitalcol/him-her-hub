@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { addAdminNote, getApplication, setApplicationStatus } from "@/lib/club.server";
+import { addAdminNote, getApplication, setApplicationStatus } from "@/lib/club-api";
 import { ReviewPortrait } from "@/components/review-portrait";
 import type { AppStatus } from "@/lib/club-domain";
 

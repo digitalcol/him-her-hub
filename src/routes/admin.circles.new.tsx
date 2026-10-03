@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { circleNameChoices, createCircle } from "@/lib/club.server";
+import { circleNameChoices, createCircle } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/circles/new")({
   head: () => ({ meta: [{ title: "New Circle · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),

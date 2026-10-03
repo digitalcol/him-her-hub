@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { listApplications, setApplicationStatus } from "@/lib/club.server";
+import { listApplications, setApplicationStatus } from "@/lib/club-api";
 import { ReviewPortrait } from "@/components/review-portrait";
 import type { AppStatus } from "@/lib/club-domain";
 
