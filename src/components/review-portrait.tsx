@@ -1,0 +1,37 @@
+import { Link } from "@tanstack/react-router";
+
+export function ReviewPortrait({
+  label,
+  src,
+  id,
+  attention = false,
+}: {
+  label: string;
+  src?: string;
+  id?: string;
+  attention?: boolean;
+}) {
+  const ring = attention
+    ? "bg-[conic-gradient(from_210deg,#f9ce34,#f77737,#ee2a7b,#8134af,#f9ce34)]"
+    : "bg-line";
+  const body = (
+    <span className="flex w-[4.75rem] shrink-0 flex-col items-center gap-2">
+      <span className={`grid size-[4.75rem] place-items-center rounded-full p-[3px] ${ring}`}>
+        <span className="grid size-full place-items-center overflow-hidden rounded-full bg-bg p-[3px]">
+          {src ? (
+            <img src={src} alt="" className="size-full rounded-full object-cover" />
+          ) : (
+            <span className="text-sm font-medium text-muted">{label.slice(0, 1)}</span>
+          )}
+        </span>
+      </span>
+      <span className="w-full truncate text-center text-xs text-fg">{label}</span>
+    </span>
+  );
+  if (!id) return body;
+  return (
+    <Link to="/admin/applications/$id" params={{ id }} className="shrink-0">
+      {body}
+    </Link>
+  );
+}

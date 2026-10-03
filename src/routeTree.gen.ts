@@ -23,6 +23,7 @@ import { Route as AdminCirclesRouteImport } from './routes/admin.circles'
 import { Route as AdminEventsRouteImport } from './routes/admin.events'
 import { Route as AdminKittyRouteImport } from './routes/admin.kitty'
 import { Route as AdminMembersRouteImport } from './routes/admin.members'
+import { Route as AdminNoticesRouteImport } from './routes/admin.notices'
 import { Route as MembersIndexRouteImport } from './routes/members.index'
 import { Route as MembersCalendarRouteImport } from './routes/members.calendar'
 import { Route as MembersCircleRouteImport } from './routes/members.circle'
@@ -32,6 +33,7 @@ import { Route as AdminApplicationsIndexRouteImport } from './routes/admin.appli
 import { Route as AdminApplicationsIdRouteImport } from './routes/admin.applications.$id'
 import { Route as AdminCirclesIndexRouteImport } from './routes/admin.circles.index'
 import { Route as AdminCirclesIdRouteImport } from './routes/admin.circles.$id'
+import { Route as AdminCirclesNewRouteImport } from './routes/admin.circles.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -103,6 +105,11 @@ const AdminMembersRoute = AdminMembersRouteImport.update({
   path: '/admin/members',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminNoticesRoute = AdminNoticesRouteImport.update({
+  id: '/admin/notices',
+  path: '/admin/notices',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MembersIndexRoute = MembersIndexRouteImport.update({
   id: '/members/',
   path: '/members/',
@@ -148,6 +155,11 @@ const AdminCirclesIdRoute = AdminCirclesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AdminCirclesRoute,
 } as any)
+const AdminCirclesNewRoute = AdminCirclesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AdminCirclesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -163,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/admin/events': typeof AdminEventsRoute
   '/admin/kitty': typeof AdminKittyRoute
   '/admin/members': typeof AdminMembersRoute
+  '/admin/notices': typeof AdminNoticesRoute
   '/members/calendar': typeof MembersCalendarRoute
   '/members/circle': typeof MembersCircleRoute
   '/members/kitty': typeof MembersKittyRoute
@@ -171,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/members/': typeof MembersIndexRoute
   '/admin/applications/$id': typeof AdminApplicationsIdRoute
   '/admin/circles/$id': typeof AdminCirclesIdRoute
+  '/admin/circles/new': typeof AdminCirclesNewRoute
   '/admin/applications/': typeof AdminApplicationsIndexRoute
   '/admin/circles/': typeof AdminCirclesIndexRoute
 }
@@ -186,6 +200,7 @@ export interface FileRoutesByTo {
   '/admin/events': typeof AdminEventsRoute
   '/admin/kitty': typeof AdminKittyRoute
   '/admin/members': typeof AdminMembersRoute
+  '/admin/notices': typeof AdminNoticesRoute
   '/members/calendar': typeof MembersCalendarRoute
   '/members/circle': typeof MembersCircleRoute
   '/members/kitty': typeof MembersKittyRoute
@@ -194,6 +209,7 @@ export interface FileRoutesByTo {
   '/members': typeof MembersIndexRoute
   '/admin/applications/$id': typeof AdminApplicationsIdRoute
   '/admin/circles/$id': typeof AdminCirclesIdRoute
+  '/admin/circles/new': typeof AdminCirclesNewRoute
   '/admin/applications': typeof AdminApplicationsIndexRoute
   '/admin/circles': typeof AdminCirclesIndexRoute
 }
@@ -212,6 +228,7 @@ export interface FileRoutesById {
   '/admin/events': typeof AdminEventsRoute
   '/admin/kitty': typeof AdminKittyRoute
   '/admin/members': typeof AdminMembersRoute
+  '/admin/notices': typeof AdminNoticesRoute
   '/members/calendar': typeof MembersCalendarRoute
   '/members/circle': typeof MembersCircleRoute
   '/members/kitty': typeof MembersKittyRoute
@@ -220,6 +237,7 @@ export interface FileRoutesById {
   '/members/': typeof MembersIndexRoute
   '/admin/applications/$id': typeof AdminApplicationsIdRoute
   '/admin/circles/$id': typeof AdminCirclesIdRoute
+  '/admin/circles/new': typeof AdminCirclesNewRoute
   '/admin/applications/': typeof AdminApplicationsIndexRoute
   '/admin/circles/': typeof AdminCirclesIndexRoute
 }
@@ -239,6 +257,7 @@ export interface FileRouteTypes {
     | '/admin/events'
     | '/admin/kitty'
     | '/admin/members'
+    | '/admin/notices'
     | '/members/calendar'
     | '/members/circle'
     | '/members/kitty'
@@ -247,6 +266,7 @@ export interface FileRouteTypes {
     | '/members/'
     | '/admin/applications/$id'
     | '/admin/circles/$id'
+    | '/admin/circles/new'
     | '/admin/applications/'
     | '/admin/circles/'
   fileRoutesByTo: FileRoutesByTo
@@ -262,6 +282,7 @@ export interface FileRouteTypes {
     | '/admin/events'
     | '/admin/kitty'
     | '/admin/members'
+    | '/admin/notices'
     | '/members/calendar'
     | '/members/circle'
     | '/members/kitty'
@@ -270,6 +291,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/admin/applications/$id'
     | '/admin/circles/$id'
+    | '/admin/circles/new'
     | '/admin/applications'
     | '/admin/circles'
   id:
@@ -287,6 +309,7 @@ export interface FileRouteTypes {
     | '/admin/events'
     | '/admin/kitty'
     | '/admin/members'
+    | '/admin/notices'
     | '/members/calendar'
     | '/members/circle'
     | '/members/kitty'
@@ -295,6 +318,7 @@ export interface FileRouteTypes {
     | '/members/'
     | '/admin/applications/$id'
     | '/admin/circles/$id'
+    | '/admin/circles/new'
     | '/admin/applications/'
     | '/admin/circles/'
   fileRoutesById: FileRoutesById
@@ -313,6 +337,7 @@ export interface RootRouteChildren {
   AdminEventsRoute: typeof AdminEventsRoute
   AdminKittyRoute: typeof AdminKittyRoute
   AdminMembersRoute: typeof AdminMembersRoute
+  AdminNoticesRoute: typeof AdminNoticesRoute
   MembersCalendarRoute: typeof MembersCalendarRoute
   MembersCircleRoute: typeof MembersCircleRoute
   MembersKittyRoute: typeof MembersKittyRoute
@@ -421,6 +446,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMembersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/notices': {
+      id: '/admin/notices'
+      path: '/admin/notices'
+      fullPath: '/admin/notices'
+      preLoaderRoute: typeof AdminNoticesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/members/': {
       id: '/members/'
       path: '/members'
@@ -484,6 +516,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCirclesIdRouteImport
       parentRoute: typeof AdminCirclesRoute
     }
+    '/admin/circles/new': {
+      id: '/admin/circles/new'
+      path: '/new'
+      fullPath: '/admin/circles/new'
+      preLoaderRoute: typeof AdminCirclesNewRouteImport
+      parentRoute: typeof AdminCirclesRoute
+    }
   }
 }
 
@@ -502,11 +541,13 @@ const AdminApplicationsRouteWithChildren =
 
 interface AdminCirclesRouteChildren {
   AdminCirclesIdRoute: typeof AdminCirclesIdRoute
+  AdminCirclesNewRoute: typeof AdminCirclesNewRoute
   AdminCirclesIndexRoute: typeof AdminCirclesIndexRoute
 }
 
 const AdminCirclesRouteChildren: AdminCirclesRouteChildren = {
   AdminCirclesIdRoute: AdminCirclesIdRoute,
+  AdminCirclesNewRoute: AdminCirclesNewRoute,
   AdminCirclesIndexRoute: AdminCirclesIndexRoute,
 }
 
@@ -528,6 +569,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminEventsRoute: AdminEventsRoute,
   AdminKittyRoute: AdminKittyRoute,
   AdminMembersRoute: AdminMembersRoute,
+  AdminNoticesRoute: AdminNoticesRoute,
   MembersCalendarRoute: MembersCalendarRoute,
   MembersCircleRoute: MembersCircleRoute,
   MembersKittyRoute: MembersKittyRoute,

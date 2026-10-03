@@ -3,24 +3,25 @@ import { useEffect, useState } from "react";
 import { WORDMARK } from "@/lib/club";
 
 const PUBLIC_LINKS = [
-  { to: "/circle", label: "The Circle" },
   { to: "/moments", label: "Moments" },
-  { to: "/apply", label: "Apply" },
+  { to: "/apply", label: "Waitlist" },
   { to: "/about", label: "About" },
 ] as const;
 
 const ADMIN_LINKS = [
   { to: "/admin/applications", label: "Applications" },
   { to: "/admin/circles", label: "Circles" },
+  { to: "/admin/circles/new", label: "New Circle" },
   { to: "/admin/members", label: "Members" },
   { to: "/admin/kitty", label: "Kitty" },
   { to: "/admin/events", label: "Events" },
+  { to: "/admin/notices", label: "Notices" },
 ] as const;
 
 const MEMBER_LINKS = [
   { to: "/members/circle", label: "Circle" },
   { to: "/members/people", label: "Members" },
-  { to: "/members/calendar", label: "Calendar" },
+  { to: "/members/calendar", label: "Dates" },
   { to: "/members/kitty", label: "Kitty" },
 ] as const;
 
@@ -42,7 +43,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg">
-      <div className="relative flex h-20 items-center justify-between px-5 lg:px-8">
+      <div className="relative flex h-14 items-center justify-between px-5 lg:h-20 lg:px-8">
         <Link to="/" className="text-sm font-bold tracking-tight text-fg sm:text-base" onClick={() => setOpen(false)}>
           {WORDMARK}
         </Link>

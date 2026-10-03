@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { submitApplication } from "@/lib/club.server";
 
 export const Route = createFileRoute("/apply")({
-  head: () => ({ meta: [{ title: "Apply · Him·Her·Hub" }] }),
+  head: () => ({ meta: [{ title: "Waitlist · Him·Her·Hub" }] }),
   component: Apply,
 });
 
@@ -27,6 +27,11 @@ function Apply() {
       instagram: String(form.get(`${who}-instagram`) ?? ""),
     });
     try {
+      const photos = {
+        one: await readPhoto(form.get("one-photo")),
+        two: await readPhoto(form.get("two-photo")),
+        together: await readPhoto(form.get("together-photo")),
+      };
       await submitApplication({
         data: {
           one: read("one"),
@@ -39,21 +44,22 @@ function Apply() {
           organise: String(form.get("organise") ?? ""),
           privacyConsent: true,
           photoConsent: form.get("photo-consent") === "on",
+          photos,
         },
       });
       setSent(true);
-    } catch {
-      setError("Check the fields and try again. Both people, a Bangalore area, and a short note are required.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Check the fields and try again. Both people, three photographs, a Bangalore area, and a short note are required.");
     }
   }
 
   if (sent) {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
-        <p className="text-xs tracking-index text-muted uppercase">Apply</p>
-        <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Application received.</h1>
+        <p className="text-xs tracking-index text-muted uppercase">Waitlist</p>
+        <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">You're on the waitlist.</h1>
         <p className="mt-4 max-w-xl text-base text-pretty text-soft">
-          We've received your application. Every application is reviewed individually. If we think there's a Circle that fits, we'll be in touch.
+          We've received your note. If there is a place for the two of you, we'll be in touch.
         </p>
       </main>
     );
@@ -61,9 +67,9 @@ function Apply() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
-      <p className="text-xs tracking-index text-muted uppercase">Apply</p>
-      <h1 className="mt-3 text-5xl font-semibold tracking-tight text-balance text-fg">Apply together.</h1>
-      <p className="mt-4 max-w-xl text-base text-pretty text-soft">One application for the two of you.</p>
+      <p className="text-xs tracking-index text-muted uppercase">Waitlist</p>
+      <h1 className="mt-3 text-5xl font-semibold tracking-tight text-balance text-fg">Join the waitlist.</h1>
+      <p className="mt-4 max-w-xl text-base text-pretty text-soft">One form for the two of you.</p>
       <form className="mt-12 space-y-12" onSubmit={onSubmit}>
         <Partner title="01 / One of you" who="one" />
         <Partner title="02 / The other" who="two" />
@@ -72,6 +78,10 @@ function Apply() {
           <Field label="Bangalore area" name="area" required />
           <Field label="Anniversary" name="anniversary" type="date" />
           <Field label="Referred by" name="referred" />
+          <label className="block text-sm text-fg">
+            A photograph of the two of you
+            <input className="mt-2 block w-full text-sm" name="together-photo" type="file" accept="image/jpeg,image/png,image/webp" required />
+          </label>
         </fieldset>
         <fieldset className="space-y-4">
           <legend className="text-xs tracking-index text-muted uppercase">04 / A little about you</legend>
@@ -93,7 +103,7 @@ function Apply() {
           <legend className="text-xs tracking-index text-muted uppercase">05 / Review</legend>
           <label className="flex items-start gap-3">
             <input type="checkbox" name="privacy" required className="mt-1" />
-            We can use this application to review the two of you for a Circle.
+            We can use this to consider the two of you for the club.
           </label>
           <label className="flex items-start gap-3">
             <input type="checkbox" name="photo-consent" className="mt-1" />
@@ -102,7 +112,7 @@ function Apply() {
         </fieldset>
         {error ? <p className="text-sm text-soft">{error}</p> : null}
         <button type="submit" className="h-11 bg-fg px-5 text-sm font-medium text-bg">
-          Apply together
+          Join the waitlist
         </button>
       </form>
     </main>
@@ -120,6 +130,10 @@ function Partner({ title, who }: { title: string; who: "one" | "two" }) {
       <Field label="Email" name={`${who}-email`} type="email" required />
       <Field label="Profession" name={`${who}-profession`} required />
       <Field label="Instagram" name={`${who}-instagram`} />
+      <label className="block text-sm text-fg">
+        Photograph
+        <input className="mt-2 block w-full text-sm" name={`${who}-photo`} type="file" accept="image/jpeg,image/png,image/webp" required />
+      </label>
     </fieldset>
   );
 }
@@ -131,4 +145,17 @@ function Field({ label, name, type = "text", required = false }: { label: string
       <input className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base" name={name} type={type} required={required} />
     </label>
   );
+}
+
+function readPhoto(value: FormDataEntryValue | null) {
+  if (!(value instanceof File) || value.size === 0) {
+    throw new Error("Add a photograph of each of you, and one of you together.");
+  }
+  if (value.size > 6 * 1024 * 1024) throw new Error("Each photograph must be under 6 MB.");
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("That photograph could not be read."));
+    reader.readAsDataURL(value);
+  });
 }

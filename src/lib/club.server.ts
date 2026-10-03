@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
+import { execFile } from "node:child_process";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { promisify } from "node:util";
 import { z } from "zod";
 import { actorForRequest, canMutateOperations, canReadCircle, isPreviewMode } from "@/lib/club-access";
+import { CIRCLE_NAMES, isCircleName } from "@/lib/circle-names";
 import { dbSource, getSql, type Sql } from "@/lib/db";
 import { isWorkspacePreview } from "@/lib/env.server";
 import {
   type AppStatus,
   type LedgerKind,
-  balance,
   canAssign,
   canTransition,
   displayStatus,
@@ -32,6 +35,8 @@ const partner = z.object({
   instagram: z.string().trim().max(80).optional().default(""),
 });
 
+const photo = z.string().trim().min(30).max(9_000_000);
+
 const applicationInput = z.object({
   one: partner,
   two: partner,
@@ -43,6 +48,11 @@ const applicationInput = z.object({
   organise: z.string().trim().max(280).optional().default(""),
   privacyConsent: z.literal(true),
   photoConsent: z.boolean(),
+  photos: z.object({
+    one: photo,
+    two: photo,
+    together: photo,
+  }),
 });
 
 async function seed(sql: Sql) {
@@ -99,17 +109,30 @@ async function ready() {
   assertActor();
   const sql = await getSql();
   await seed(sql);
-  if (isPreviewMode() && dbSource === "pglite") {
-    await sql`insert into contributions (id, circle_id, couple_id, expected_amount, status, paid_at, recorded_by)
-      select 'con-' || m.couple_id, m.circle_id, m.couple_id, c.kitty_amount, 'PAID', now(), 'seed'
-      from circle_memberships m
-      join circles c on c.id = m.circle_id
-      where m.status = 'ACTIVE'
-        and not exists (
-          select 1 from contributions x where x.circle_id = m.circle_id and x.couple_id = m.couple_id
-        )`;
-  }
   await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
+  if (isPreviewMode() && dbSource === "pglite") {
+    await sql`insert into expenses (id, circle_id, amount, note, status)
+      select 'exp-1', 'orion', 12400, 'The Long Table', 'APPROVED'
+      where not exists (select 1 from expenses where id = 'exp-1')`;
+    await sql`update circles
+      set joining_fee = 25000,
+          renewal_fee = 15000,
+          rules = 'Hosts take turns. The kitty pays for the table. Renewal is due once a year.'
+      where id = 'orion' and joining_fee = 0`;
+    await sql`update circles
+      set joining_fee = 18000,
+          renewal_fee = 8000,
+          rules = 'A second table. Hosts still rotate. Fees are this Circle’s own.'
+      where id = 'vega' and joining_fee = 0`;
+    await sql`update circle_memberships m
+      set host_order = numbered.n
+      from (
+        select id, row_number() over (partition by circle_id order by joined_at, id) as n
+        from circle_memberships
+        where status = 'ACTIVE'
+      ) numbered
+      where m.id = numbered.id and m.host_order is null`;
+  }
   return sql;
 }
 
@@ -123,6 +146,63 @@ type CoupleRow = {
   status: AppStatus;
   assigned: boolean;
 };
+
+async function savePrivatePhoto(dataUrl: string) {
+  const match = /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=\s]+)$/.exec(dataUrl);
+  if (!match) throw new Error("Each photograph must be a JPEG, PNG, or WebP.");
+  const bytes = Buffer.from(match[1], "base64");
+  if (bytes.length < 32 || bytes.length > 6 * 1024 * 1024) throw new Error("Each photograph must be under 6 MB.");
+  const mime =
+    bytes[0] === 0xff && bytes[1] === 0xd8
+      ? "image/jpeg"
+      : bytes[0] === 0x89 && bytes[1] === 0x50
+        ? "image/png"
+        : bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP"
+          ? "image/webp"
+          : null;
+  if (!mime) throw new Error("Each photograph must be a JPEG, PNG, or WebP.");
+  const key = crypto.randomUUID();
+  await mkdir(".data/private", { recursive: true });
+  await writeFile(`.data/private/${key}`, bytes);
+  return { key, mime };
+}
+
+const execFileAsync = promisify(execFile);
+
+async function readThumb(key: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(key)) return "";
+  const src = `.data/private/${key}`;
+  const dest = `.data/private/${key}.thumb.jpg`;
+  try {
+    await access(dest);
+  } catch {
+    try {
+      await execFileAsync(
+        "ffmpeg",
+        ["-y", "-i", src, "-vf", "scale=240:240:force_original_aspect_ratio=increase,crop=240:240", "-frames:v", "1", "-q:v", "7", dest],
+        { timeout: 20000 },
+      );
+    } catch {
+      return "";
+    }
+  }
+  try {
+    const bytes = await readFile(dest);
+    return `data:image/jpeg;base64,${bytes.toString("base64")}`;
+  } catch {
+    return "";
+  }
+}
+
+async function readPrivatePhoto(key: string, mime: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(key)) return "";
+  try {
+    const bytes = await readFile(`.data/private/${key}`);
+    return `data:${mime};base64,${bytes.toString("base64")}`;
+  } catch {
+    return "";
+  }
+}
 
 async function couples(sql: Sql): Promise<CoupleRow[]> {
   return sql<CoupleRow>`
@@ -152,9 +232,22 @@ export const clubOverview = createServerFn({ method: "GET" }).handler(async () =
 export const listApplications = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await ready();
   const rows = await couples(sql);
+  const people = await sql<{ couple_id: string; first_name: string; last_name: string; email: string | null; profession: string | null }>`
+    select couple_id, first_name, last_name, email, profession from people order by id
+  `;
+  const assets = await sql<{ couple_id: string; role: string; storage_key: string }>`
+    select couple_id, role, storage_key from application_assets
+  `;
+  const portraits: Record<string, Record<string, string>> = {};
+  for (const asset of assets) {
+    portraits[asset.couple_id] ??= {};
+    portraits[asset.couple_id][asset.role] = await readThumb(asset.storage_key);
+  }
   return rows.map((row) => ({
     ...row,
     label: displayStatus(row.status, row.assigned),
+    partners: people.filter((person) => person.couple_id === row.id),
+    portraits: portraits[row.id] ?? {},
   }));
 });
 
@@ -169,13 +262,39 @@ export const getApplication = createServerFn({ method: "GET" })
     `;
     const couple = rows[0];
     if (!couple) throw new Error("Application not found.");
-    const people = await sql<{ first_name: string; profession: string | null; instagram: string | null }>`
-      select first_name, profession, instagram from people where couple_id = ${data.id}
+    const people = await sql<{
+      first_name: string;
+      last_name: string;
+      dob: string | null;
+      phone: string | null;
+      email: string | null;
+      profession: string | null;
+      instagram: string | null;
+    }>`
+      select first_name, last_name, dob, phone, email, profession, instagram
+      from people where couple_id = ${data.id} order by id
     `;
     const notes = await sql<{ id: string; body: string }>`
       select id, body from admin_notes where couple_id = ${data.id} order by created_at
     `;
-    return { ...couple, label: displayStatus(couple.status, couple.assigned), people, notes };
+    const assets = await sql<{ id: string; role: string; mime: string; storage_key: string }>`
+      select id, role, mime, storage_key from application_assets where couple_id = ${data.id}
+    `;
+    const photos: Record<string, string> = {};
+    for (const asset of assets) {
+      photos[asset.role] = await readPrivatePhoto(asset.storage_key, asset.mime);
+    }
+    const detail = await sql<{ anniversary: string | null; organise: string | null; referral: string | null; photo_consent: boolean }>`
+      select anniversary, organise, referral, photo_consent from couples where id = ${data.id}
+    `;
+    return {
+      ...couple,
+      ...detail[0],
+      label: displayStatus(couple.status, couple.assigned),
+      people,
+      notes,
+      photos,
+    };
   });
 
 export const setApplicationStatus = createServerFn({ method: "POST" })
@@ -209,23 +328,33 @@ export const submitApplication = createServerFn({ method: "POST" })
     `;
     const id = crypto.randomUUID();
     const name = `${data.one.first} & ${data.two.first}`;
-    const interests = [...data.interests, data.organise].filter(Boolean).join(", ");
-    await sql`insert into couples (id, name, area, about, interests, referral, status, photo_consent)
-      values (${id}, ${name}, ${data.area}, ${data.about}, ${interests}, ${data.referred || null}, 'NEW', ${data.photoConsent})`;
+    const interests = data.interests.join(", ");
+    await sql`insert into couples (id, name, area, about, interests, referral, status, photo_consent, anniversary, organise)
+      values (${id}, ${name}, ${data.area}, ${data.about}, ${interests}, ${data.referred || null}, 'NEW', ${data.photoConsent}, ${data.anniversary || null}, ${data.organise || null})`;
     for (const [key, person] of [
       ["a", data.one],
       ["b", data.two],
     ] as const) {
-      await sql`insert into people (id, couple_id, first_name, last_name, profession, instagram, phone)
-        values (${`${id}-${key}`}, ${id}, ${person.first}, ${person.last}, ${person.profession}, ${normalizeInstagram(person.instagram)}, ${normalizePhone(person.mobile)})`;
+      await sql`insert into people (id, couple_id, first_name, last_name, profession, instagram, phone, email, dob)
+        values (${`${id}-${key}`}, ${id}, ${person.first}, ${person.last}, ${person.profession}, ${normalizeInstagram(person.instagram)}, ${normalizePhone(person.mobile)}, ${person.email}, ${person.dob})`;
+    }
+    for (const [role, value] of [
+      ["one", data.photos.one],
+      ["two", data.photos.two],
+      ["together", data.photos.together],
+    ] as const) {
+      const saved = await savePrivatePhoto(value);
+      await sql`insert into application_assets (id, couple_id, role, mime, storage_key)
+        values (${crypto.randomUUID()}, ${id}, ${role}, ${saved.mime}, ${saved.key})`;
     }
     return { id };
   });
 
 export const listCircles = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await ready();
-  return sql<{ id: string; name: string; city: string; status: string; capacity: number; kitty_amount: number; taken: number }>`
-    select c.id, c.name, c.city, c.status, c.capacity, c.kitty_amount, count(m.couple_id) as taken
+  return sql<{ id: string; name: string; city: string; status: string; capacity: number; kitty_amount: number; joining_fee: number; renewal_fee: number; taken: number }>`
+    select c.id, c.name, c.city, c.status, c.capacity, c.kitty_amount, c.joining_fee, c.renewal_fee,
+      count(m.couple_id) filter (where m.status = 'ACTIVE') as taken
     from circles c
     left join circle_memberships m on m.circle_id = c.id
     group by c.id
@@ -242,14 +371,22 @@ async function loadCircle(sql: Sql, id: string) {
     capacity: number;
     kitty_amount: number;
     whatsapp_url: string | null;
-  }>`select id, name, city, status, capacity, kitty_amount, whatsapp_url from circles where id = ${id}`;
+    joining_fee: number;
+    renewal_fee: number;
+    rules: string;
+  }>`select id, name, city, status, capacity, kitty_amount, whatsapp_url, joining_fee, renewal_fee, rules from circles where id = ${id}`;
   const circle = circles[0];
   if (!circle) throw new Error("Circle not found.");
-  const members = await sql<{ id: string; name: string; area: string }>`
-    select c.id, c.name, c.area
+  const members = await sql<{ id: string; name: string; area: string; host_order: number | null; paid: boolean }>`
+    select c.id, c.name, c.area, m.host_order,
+      exists (
+        select 1 from contributions k
+        where k.circle_id = m.circle_id and k.couple_id = c.id and k.status = 'PAID'
+      ) as paid
     from circle_memberships m
     join couples c on c.id = m.couple_id
-    where m.circle_id = ${id}
+    where m.circle_id = ${id} and m.status = 'ACTIVE'
+    order by m.host_order nulls last, c.name
   `;
   const waiting = (await couples(sql)).filter((row) =>
     canAssign(row.status, row.assigned, Number(circle.capacity), members.length),
@@ -257,7 +394,26 @@ async function loadCircle(sql: Sql, id: string) {
   const ledger = await sql<{ kind: LedgerKind; amount: number; note: string }>`
     select kind, amount, note from ledger where circle_id = ${id} order by created_at
   `;
-  return { ...circle, members, waiting, kitty: balance(ledger), ledger };
+  const billRows = await sql<{ id: string; amount: number; note: string; bill_key: string | null; bill_mime: string | null }>`
+    select id, amount, note, bill_key, bill_mime from expenses
+    where circle_id = ${id} and status = 'APPROVED'
+    order by created_at
+  `;
+  const each = Number(circle.kitty_amount);
+  const opening = members.length * each;
+  let running = opening;
+  const bills = [];
+  for (const row of billRows) {
+    running -= Number(row.amount);
+    bills.push({
+      id: row.id,
+      note: row.note,
+      amount: Number(row.amount),
+      balance: running,
+      bill: row.bill_key ? await readThumb(row.bill_key) : "",
+    });
+  }
+  return { ...circle, members, waiting, kitty: running, opening, each, bills, ledger };
 }
 
 export const getCircle = createServerFn({ method: "GET" })
@@ -273,7 +429,8 @@ export const assignCouple = createServerFn({ method: "POST" })
     if (!couple || !canAssign(couple.status, couple.assigned, Number(circle.capacity), circle.members.length)) {
       throw new Error("That couple cannot join this Circle.");
     }
-    await sql`insert into circle_memberships (id, circle_id, couple_id, status) values (${crypto.randomUUID()}, ${data.circleId}, ${data.coupleId}, 'ACTIVE')`;
+    await sql`insert into circle_memberships (id, circle_id, couple_id, status, host_order)
+      values (${crypto.randomUUID()}, ${data.circleId}, ${data.coupleId}, 'ACTIVE', ${circle.members.length + 1})`;
     await sql`update couples set status = 'ASSIGNED', updated_at = now() where id = ${data.coupleId}`;
     return { ok: true };
   });
@@ -306,18 +463,20 @@ export const markKittyPaid = createServerFn({ method: "POST" })
   });
 
 export const addExpense = createServerFn({ method: "POST" })
-  .validator((data: { circleId: string; amount: number; note: string }) => data)
+  .validator((data: { circleId: string; amount: number; note: string; bill: string }) => data)
   .handler(async ({ data }) => {
     const sql = await ready();
+    if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
     if (!Number.isFinite(data.amount) || data.amount <= 0) throw new Error("Amount must be a positive number.");
     const expenseId = crypto.randomUUID();
     const amount = Math.round(data.amount);
     const note = data.note.trim();
     if (!note) throw new Error("An expense needs a note.");
+    const bill = await savePrivatePhoto(data.bill);
     await sql.query("begin");
     try {
-      await sql`insert into expenses (id, circle_id, amount, note, status)
-        values (${expenseId}, ${data.circleId}, ${amount}, ${note}, 'APPROVED')`;
+      await sql`insert into expenses (id, circle_id, amount, note, status, bill_key, bill_mime)
+        values (${expenseId}, ${data.circleId}, ${amount}, ${note}, 'APPROVED', ${bill.key}, ${bill.mime})`;
       await sql`insert into ledger (id, circle_id, kind, amount, note, reference_type, reference_id, created_by)
         values (${crypto.randomUUID()}, ${data.circleId}, 'EXPENSE', ${amount}, ${note}, 'EXPENSE', ${expenseId}, 'admin')`;
       await sql.query("commit");
@@ -353,17 +512,30 @@ export const setWhatsApp = createServerFn({ method: "POST" })
   });
 
 export const createCircle = createServerFn({ method: "POST" })
-  .validator((data: { name: string }) => data)
+  .validator((data: { name: string; rules: string; kittyAmount: number; joiningFee: number; renewalFee: number }) => data)
   .handler(async ({ data }) => {
     const sql = await ready();
     if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
     const name = data.name.trim();
-    if (name.length < 2) throw new Error("A Circle needs a name.");
-    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || crypto.randomUUID();
-    await sql`insert into circles (id, name, city, status, capacity, kitty_amount, description)
-      values (${id}, ${name}, 'Bangalore', 'FORMING', 10, 10000, '')`;
+    if (!isCircleName(name)) throw new Error("Choose a name from the star list.");
+    const rules = data.rules.trim();
+    if (rules.length < 12) throw new Error("Write the rules for this Circle.");
+    const amounts = [data.kittyAmount, data.joiningFee, data.renewalFee].map((value) => Math.round(Number(value)));
+    if (amounts.some((value) => !Number.isFinite(value) || value <= 0)) throw new Error("Kitty, joining, and renewal must be amounts.");
+    const taken = await sql<{ id: string }>`select id from circles where lower(name) = lower(${name})`;
+    if (taken[0]) throw new Error("That name is already a Circle.");
+    const id = name.toLowerCase();
+    await sql`insert into circles (id, name, city, status, capacity, kitty_amount, joining_fee, renewal_fee, rules, description)
+      values (${id}, ${name}, 'Bangalore', 'FORMING', 10, ${amounts[0]}, ${amounts[1]}, ${amounts[2]}, ${rules}, ${rules})`;
     return { id };
   });
+
+export const circleNameChoices = createServerFn({ method: "GET" }).handler(async () => {
+  const sql = await ready();
+  const used = await sql<{ name: string }>`select name from circles`;
+  const taken = new Set(used.map((row) => row.name.toLowerCase()));
+  return CIRCLE_NAMES.filter((name) => !taken.has(name.toLowerCase()));
+});
 
 export const moveCouple = createServerFn({ method: "POST" })
   .validator((data: { coupleId: string; toCircleId: string }) => data)
@@ -412,11 +584,27 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
   if (!circleId) throw new Error("No Circle is assigned yet.");
   if (!canReadCircle(actor, circleId)) throw new Error("This Circle is not available.");
   const circle = await loadCircle(sql, circleId);
-  const events = await sql<{ id: string; title: string; place: string; event_date: string | null }>`
-    select id, title, place, event_date from events where circle_id = ${circleId} order by event_date
+  const events = await sql<{ id: string; title: string; place: string; event_date: string | null; host_name: string | null }>`
+    select e.id, e.title, e.place, e.event_date, host.name as host_name
+    from events e
+    left join couples host on host.id = e.host_couple_id
+    where e.circle_id = ${circleId}
+    order by e.event_date
   `;
   const votes = await sql<{ couple_id: string; available: boolean }>`
     select couple_id, available from availability where event_id = 'e1'
+  `;
+  const replies = await sql<{ event_id: string; couple_id: string; name: string; available: boolean; choice: string | null }>`
+    select a.event_id, a.couple_id, c.name, a.available, a.choice
+    from availability a
+    join couples c on c.id = a.couple_id
+    join events e on e.id = a.event_id
+    where e.circle_id = ${circleId}
+  `;
+  const notices = await sql<{ id: string; title: string; body: string; circle_id: string | null }>`
+    select id, title, body, circle_id from notices
+    where circle_id is null or circle_id = ${circleId}
+    order by created_at desc
   `;
   const paid = await sql<{ n: number }>`
     select count(*) as n from contributions where circle_id = ${circleId} and status = 'PAID'
@@ -428,6 +616,9 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     circle,
     events,
     votes,
+    replies,
+    notices,
+    you: "c1",
     funding: {
       paid: Number(paid[0]?.n ?? 0),
       seats: Number(circle.capacity),
