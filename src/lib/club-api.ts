@@ -24,11 +24,21 @@ function assertActor() {
   return actor;
 }
 
+function phoneDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 const partner = z.object({
   first: z.string().trim().min(1).max(40),
   last: z.string().trim().min(1).max(40),
   dob: z.string().min(4),
-  mobile: z.string().trim().min(8).max(20),
+  mobile: z
+    .string()
+    .trim()
+    .refine((value) => {
+      const digits = phoneDigits(value).length;
+      return digits >= 8 && digits <= 15;
+    }, "Enter a full mobile number."),
   email: z.string().trim().email().max(120),
   profession: z.string().trim().min(1).max(80),
   instagram: z.string().trim().max(80).optional().default(""),
@@ -308,8 +318,27 @@ export const setApplicationStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+function applicationError(error: z.ZodError) {
+  const lines = new Set<string>();
+  for (const issue of error.issues) {
+    const path = issue.path.join(".");
+    if (path.endsWith("mobile")) lines.add("Enter a full mobile number for each of you.");
+    else if (path.endsWith("email")) lines.add("Enter an email address for each of you.");
+    else if (path.startsWith("photos")) lines.add("Add a photograph of each of you, and one of you together.");
+    else if (path === "about") lines.add("Tell us a little about the two of you.");
+    else if (path === "area") lines.add("Add your Bangalore area.");
+    else if (path.endsWith("first") || path.endsWith("last")) lines.add("Enter both first and last names.");
+    else lines.add("Check the fields and try again.");
+  }
+  return [...lines].join(" ");
+}
+
 export const submitApplication = createServerFn({ method: "POST" })
-  .validator((data: unknown) => applicationInput.parse(data))
+  .validator((data: unknown) => {
+    const parsed = applicationInput.safeParse(data);
+    if (!parsed.success) throw new Error(applicationError(parsed.error));
+    return parsed.data;
+  })
   .handler(async ({ data }) => {
     const sql = await ready();
     const email = data.one.email.toLowerCase();

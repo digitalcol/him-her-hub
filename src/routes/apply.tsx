@@ -32,10 +32,15 @@ function Apply() {
         two: await readPhoto(form.get("two-photo")),
         together: await readPhoto(form.get("together-photo")),
       };
+      const one = read("one");
+      const two = read("two");
+      if ([one.mobile, two.mobile].some((value) => value.replace(/\D/g, "").length < 8)) {
+        throw new Error("Enter a full mobile number for each of you.");
+      }
       await submitApplication({
         data: {
-          one: read("one"),
-          two: read("two"),
+          one,
+          two,
           area: String(form.get("area") ?? ""),
           anniversary: String(form.get("anniversary") ?? ""),
           referred: String(form.get("referred") ?? ""),
@@ -126,7 +131,7 @@ function Partner({ title, who }: { title: string; who: "one" | "two" }) {
       <Field label="First name" name={`${who}-first`} required />
       <Field label="Last name" name={`${who}-last`} required />
       <Field label="Date of birth" name={`${who}-dob`} type="date" required />
-      <Field label="Mobile" name={`${who}-mobile`} type="tel" required />
+      <Field label="Mobile" name={`${who}-mobile`} type="tel" required placeholder="98765 43210" />
       <Field label="Email" name={`${who}-email`} type="email" required />
       <Field label="Profession" name={`${who}-profession`} required />
       <Field label="Instagram" name={`${who}-instagram`} />
@@ -138,11 +143,11 @@ function Partner({ title, who }: { title: string; who: "one" | "two" }) {
   );
 }
 
-function Field({ label, name, type = "text", required = false }: { label: string; name: string; type?: string; required?: boolean }) {
+function Field({ label, name, type = "text", required = false, placeholder }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string }) {
   return (
     <label className="block text-sm text-fg">
       {label}
-      <input className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base" name={name} type={type} required={required} />
+      <input className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base" name={name} type={type} required={required} placeholder={placeholder} />
     </label>
   );
 }
