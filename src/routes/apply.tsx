@@ -54,7 +54,7 @@ function Apply() {
       });
       setSent(true);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Check the fields and try again. Both people, three photographs, a Bangalore area, and a short note are required.");
+      setError(messageFrom(caught));
     }
   }
 
@@ -152,15 +152,50 @@ function Field({ label, name, type = "text", required = false, placeholder }: { 
   );
 }
 
+function messageFrom(caught: unknown) {
+  const message =
+    caught instanceof Error
+      ? caught.message
+      : caught && typeof caught === "object" && "message" in caught
+        ? String((caught as { message: unknown }).message)
+        : "";
+  if (/413|too large/i.test(message)) return "Those photographs are too large. Please try once more.";
+  return message || "The form could not be sent. Check the photographs and try again.";
+}
+
 function readPhoto(value: FormDataEntryValue | null) {
   if (!(value instanceof File) || value.size === 0) {
     throw new Error("Add a photograph of each of you, and one of you together.");
   }
-  if (value.size > 6 * 1024 * 1024) throw new Error("Each photograph must be under 6 MB.");
+  return compressPhoto(value);
+}
+
+function compressPhoto(file: File) {
   return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("That photograph could not be read."));
-    reader.readAsDataURL(value);
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const longest = Math.max(image.width, image.height) || 1;
+      const scale = Math.min(1, 1400 / longest);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error("That photograph could not be read."));
+        return;
+      }
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      let data = canvas.toDataURL("image/jpeg", 0.8);
+      if (data.length > 700_000) data = canvas.toDataURL("image/jpeg", 0.55);
+      resolve(data);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("That photograph could not be read. Use a JPEG, PNG, or WebP."));
+    };
+    image.src = url;
   });
 }
