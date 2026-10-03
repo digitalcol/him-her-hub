@@ -71,13 +71,15 @@ function Apply() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
+    <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:max-w-5xl lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Waitlist</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-balance text-fg">Join the waitlist.</h1>
       <p className="mt-4 max-w-xl text-base text-pretty text-soft">One form for the two of you.</p>
       <form className="mt-12 space-y-12" onSubmit={onSubmit}>
-        <Partner title="01 / One of you" who="one" />
-        <Partner title="02 / The other" who="two" />
+        <div className="grid gap-12 lg:grid-cols-2 lg:gap-x-16">
+          <Partner title="01 / One of you" who="one" />
+          <Partner title="02 / The other" who="two" />
+        </div>
         <fieldset className="space-y-4">
           <legend className="text-xs tracking-index text-muted uppercase">03 / You two</legend>
           <Field label="Bangalore area" name="area" required />
@@ -126,7 +128,7 @@ function Apply() {
 
 function Partner({ title, who }: { title: string; who: "one" | "two" }) {
   return (
-    <fieldset className="space-y-4">
+    <fieldset className="min-w-0 space-y-4">
       <legend className="text-xs tracking-index text-muted uppercase">{title}</legend>
       <Field label="First name" name={`${who}-first`} required />
       <Field label="Last name" name={`${who}-last`} required />
