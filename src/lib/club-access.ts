@@ -7,6 +7,8 @@ export { canListApplications, canMutateOperations, canReadCircle, canReadAdminNo
 export function isPreviewMode(): boolean {
   if (process.env.PREVIEW_MODE === "true") return true;
   if (process.env.PREVIEW_MODE === "false") return false;
+  // No hosted database yet: keep the working preview, including on the live site.
+  if (!process.env.DATABASE_URL?.trim()) return true;
   return isWorkspacePreview();
 }
 

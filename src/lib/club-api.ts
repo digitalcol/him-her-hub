@@ -5,8 +5,7 @@ import { promisify } from "node:util";
 import { z } from "zod";
 import { actorForRequest, canMutateOperations, canReadCircle, isPreviewMode } from "@/lib/club-access";
 import { CIRCLE_NAMES, isCircleName } from "@/lib/circle-names";
-import { dbSource, getSql, type Sql } from "@/lib/db";
-import { isWorkspacePreview } from "@/lib/env.server";
+import { dbSource, getSql, runtimeDataDir, type Sql } from "@/lib/db";
 import {
   type AppStatus,
   type LedgerKind,
@@ -103,9 +102,6 @@ async function seed(sql: Sql) {
 }
 
 async function ready() {
-  if (!isWorkspacePreview() && dbSource === "pglite") {
-    throw new Error("A hosted DATABASE_URL is required outside the local sandbox.");
-  }
   assertActor();
   const sql = await getSql();
   await seed(sql);
@@ -162,8 +158,9 @@ async function savePrivatePhoto(dataUrl: string) {
           : null;
   if (!mime) throw new Error("Each photograph must be a JPEG, PNG, or WebP.");
   const key = crypto.randomUUID();
-  await mkdir(".data/private", { recursive: true });
-  await writeFile(`.data/private/${key}`, bytes);
+  const dir = runtimeDataDir("private");
+  await mkdir(dir, { recursive: true });
+  await writeFile(`${dir}/${key}`, bytes);
   return { key, mime };
 }
 
@@ -171,8 +168,9 @@ const execFileAsync = promisify(execFile);
 
 async function readThumb(key: string) {
   if (!/^[0-9a-f-]{36}$/i.test(key)) return "";
-  const src = `.data/private/${key}`;
-  const dest = `.data/private/${key}.thumb.jpg`;
+  const dir = runtimeDataDir("private");
+  const src = `${dir}/${key}`;
+  const dest = `${dir}/${key}.thumb.jpg`;
   try {
     await access(dest);
   } catch {
@@ -197,7 +195,7 @@ async function readThumb(key: string) {
 async function readPrivatePhoto(key: string, mime: string) {
   if (!/^[0-9a-f-]{36}$/i.test(key)) return "";
   try {
-    const bytes = await readFile(`.data/private/${key}`);
+    const bytes = await readFile(`${runtimeDataDir("private")}/${key}`);
     return `data:${mime};base64,${bytes.toString("base64")}`;
   } catch {
     return "";

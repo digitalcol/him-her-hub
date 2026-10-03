@@ -105,14 +105,20 @@ function createNeonSql(): Promise<Sql> {
   return globalRef.__pgSqlPromise__;
 }
 
+export function runtimeDataDir(name: string) {
+  const root = process.env.VERCEL ? "/tmp/himherhub" : ".data";
+  return `${root}/${name}`;
+}
+
 async function createPgliteSql(): Promise<Sql> {
-  // Local file database so a sandbox restart keeps applications. This is not
-  // the production database. A deploy must set DATABASE_URL.
+  // Local file database so a sandbox restart keeps applications. On Vercel the
+  // project directory is read-only, so the same embedded database lives in /tmp.
   const { mkdirSync } = await import("node:fs");
-  mkdirSync(".data/pglite", { recursive: true });
+  const dir = runtimeDataDir("pglite");
+  mkdirSync(dir, { recursive: true });
   globalRef.__pgliteInstance__ ??= (async () => {
     const { PGlite } = await import("@electric-sql/pglite");
-    const pg = new PGlite(".data/pglite", {
+    const pg = new PGlite(dir, {
       parsers: {
         [OID_INT8]: Number,
         [OID_DATE]: identity,
