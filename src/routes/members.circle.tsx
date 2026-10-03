@@ -28,7 +28,9 @@ function MemberCircle() {
         <a href={circle.whatsapp_url} className="mt-8 inline-flex h-11 items-center text-sm font-medium text-fg" target="_blank" rel="noreferrer">
           Open WhatsApp
         </a>
-      ) : null}
+      ) : (
+        <p className="mt-8 text-sm text-muted">WhatsApp group not available yet.</p>
+      )}
     </main>
   );
 }

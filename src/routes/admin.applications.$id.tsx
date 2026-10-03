@@ -41,7 +41,7 @@ function ApplicationDetail() {
           </button>
         ) : null}
         {row.status === "REVIEWING" || row.status === "HOLD" ? (
-          <button type="button" className="h-11 bg-fg px-4 text-bg" onClick={() => move("APPROVED")}>
+          <button type="button" className="h-11 bg-fg px-4 text-bg" onClick={() => move("WAITING_FOR_CIRCLE")}>
             Approve
           </button>
         ) : null}

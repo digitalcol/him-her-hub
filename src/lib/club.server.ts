@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getSql, type Sql } from "@/lib/db";
+import { actorForRequest, canMutateOperations, canReadCircle, isPreviewMode } from "@/lib/club-access";
+import { dbSource, getSql, type Sql } from "@/lib/db";
+import { isWorkspacePreview } from "@/lib/env.server";
 import {
   type AppStatus,
   type LedgerKind,
@@ -12,10 +14,12 @@ import {
   normalizePhone,
 } from "@/lib/club-domain";
 
-function assertOpen() {
-  if (process.env.PREVIEW_MODE === "false") {
+function assertActor() {
+  const actor = actorForRequest();
+  if (actor.role === "anonymous") {
     throw new Error("Club tools are closed until member and admin sign-in is on.");
   }
+  return actor;
 }
 
 const partner = z.object({
@@ -42,11 +46,14 @@ const applicationInput = z.object({
 });
 
 async function seed(sql: Sql) {
+  if (!isPreviewMode() || dbSource !== "pglite") return;
   const existing = await sql<{ n: number }>`select count(*) as n from circles`;
   if (Number(existing[0]?.n) > 0) return;
 
-  await sql`insert into circles (id, name, city, status, capacity, kitty_amount, whatsapp_url, start_date)
-    values ('orion', 'Orion', 'Bangalore', 'ACTIVE', 10, 10000, 'https://wa.me/', '2026-10-12')`;
+  await sql`insert into circles (id, name, city, status, capacity, kitty_amount, whatsapp_url, start_date, description)
+    values ('orion', 'Orion', 'Bangalore', 'ACTIVE', 10, 10000, null, '2026-10-12', 'The first Circle.')`;
+  await sql`insert into circles (id, name, city, status, capacity, kitty_amount, whatsapp_url, description)
+    values ('vega', 'Vega', 'Bangalore', 'FORMING', 10, 10000, null, 'A second Circle, still open.')`;
 
   const seated = [
     ["c1", "Asha & Nikhil", "Indiranagar", "Asha", "Nikhil", "Architect", "Editor"],
@@ -56,18 +63,18 @@ async function seed(sql: Sql) {
 
   for (const [id, name, area, firstA, firstB, jobA, jobB] of seated) {
     await sql`insert into couples (id, name, area, about, interests, status, photo_consent)
-      values (${id}, ${name}, ${area}, 'In Orion.', 'Dining, Travel', 'APPROVED', false)`;
+      values (${id}, ${name}, ${area}, 'In Orion.', 'Dining, Travel', 'ASSIGNED', false)`;
     await sql`insert into people (id, couple_id, first_name, last_name, profession)
       values (${`${id}-a`}, ${id}, ${firstA}, '', ${jobA})`;
     await sql`insert into people (id, couple_id, first_name, last_name, profession)
       values (${`${id}-b`}, ${id}, ${firstB}, '', ${jobB})`;
-    await sql`insert into circle_memberships (circle_id, couple_id) values ('orion', ${id})`;
+    await sql`insert into circle_memberships (id, circle_id, couple_id, status) values (${`m-${id}`}, 'orion', ${id}, 'ACTIVE')`;
     await sql`insert into ledger (id, circle_id, kind, amount, note)
       values (${`pay-${id}`}, 'orion', 'CONTRIBUTION', 10000, ${name})`;
   }
 
   await sql`insert into couples (id, name, area, about, interests, referral, status, photo_consent)
-    values ('wait', 'Leela & Sameer', 'Whitefield', 'Waiting for a Circle.', 'Live music, Food', 'Asha', 'APPROVED', true)`;
+    values ('wait', 'Leela & Sameer', 'Whitefield', 'Waiting for a Circle.', 'Live music, Food', 'Asha', 'WAITING_FOR_CIRCLE', true)`;
   await sql`insert into people (id, couple_id, first_name, last_name, profession) values ('wait-a', 'wait', 'Leela', '', 'Writer')`;
   await sql`insert into people (id, couple_id, first_name, last_name, profession) values ('wait-b', 'wait', 'Sameer', '', 'Engineer')`;
 
@@ -84,9 +91,13 @@ async function seed(sql: Sql) {
 }
 
 async function ready() {
-  assertOpen();
+  if (!isWorkspacePreview() && dbSource === "pglite") {
+    throw new Error("A hosted DATABASE_URL is required outside the local sandbox.");
+  }
+  assertActor();
   const sql = await getSql();
   await seed(sql);
+  await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
   return sql;
 }
 
@@ -161,7 +172,7 @@ export const setApplicationStatus = createServerFn({ method: "POST" })
     if (!current || !canTransition(current, data.status)) {
       throw new Error("That status change is not allowed.");
     }
-    await sql`update couples set status = ${data.status} where id = ${data.id}`;
+    await sql`update couples set status = ${data.status}, reviewed_at = now(), updated_at = now() where id = ${data.id}`;
     return { ok: true };
   });
 
@@ -235,7 +246,8 @@ export const assignCouple = createServerFn({ method: "POST" })
     if (!couple || !canAssign(couple.status, couple.assigned, Number(circle.capacity), circle.members.length)) {
       throw new Error("That couple cannot join this Circle.");
     }
-    await sql`insert into circle_memberships (circle_id, couple_id) values (${data.circleId}, ${data.coupleId})`;
+    await sql`insert into circle_memberships (id, circle_id, couple_id, status) values (${crypto.randomUUID()}, ${data.circleId}, ${data.coupleId}, 'ACTIVE')`;
+    await sql`update couples set status = 'ASSIGNED', updated_at = now() where id = ${data.coupleId}`;
     return { ok: true };
   });
 
@@ -265,11 +277,81 @@ export const addExpense = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const setWhatsApp = createServerFn({ method: "POST" })
+  .validator((data: { circleId: string; url: string }) => data)
+  .handler(async ({ data }) => {
+    const sql = await ready();
+    if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
+    const url = data.url.trim();
+    if (url && !url.startsWith("https://chat.whatsapp.com/") && !url.startsWith("https://wa.me/")) {
+      throw new Error("Use a WhatsApp group link.");
+    }
+    await sql`update circles set whatsapp_url = ${url || null} where id = ${data.circleId}`;
+    return { ok: true };
+  });
+
+export const createCircle = createServerFn({ method: "POST" })
+  .validator((data: { name: string }) => data)
+  .handler(async ({ data }) => {
+    const sql = await ready();
+    if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
+    const name = data.name.trim();
+    if (name.length < 2) throw new Error("A Circle needs a name.");
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || crypto.randomUUID();
+    await sql`insert into circles (id, name, city, status, capacity, kitty_amount, description)
+      values (${id}, ${name}, 'Bangalore', 'FORMING', 10, 10000, '')`;
+    return { id };
+  });
+
+export const moveCouple = createServerFn({ method: "POST" })
+  .validator((data: { coupleId: string; toCircleId: string }) => data)
+  .handler(async ({ data }) => {
+    const sql = await ready();
+    if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
+    await sql.query("begin");
+    try {
+      const current = await sql<{ id: string }>`
+        select id from circle_memberships where couple_id = ${data.coupleId} and status = 'ACTIVE'
+      `;
+      const dest = await sql<{ capacity: number; taken: number }>`
+        select c.capacity, count(m.couple_id) as taken
+        from circles c
+        left join circle_memberships m on m.circle_id = c.id and m.status = 'ACTIVE'
+        where c.id = ${data.toCircleId}
+        group by c.id
+      `;
+      const circle = dest[0];
+      if (!circle) throw new Error("Circle not found.");
+      if (Number(circle.taken) >= Number(circle.capacity)) throw new Error("That Circle is full.");
+      if (current[0]) await sql`update circle_memberships set status = 'LEFT' where id = ${current[0].id}`;
+      await sql`insert into circle_memberships (id, circle_id, couple_id, status)
+        values (${crypto.randomUUID()}, ${data.toCircleId}, ${data.coupleId}, 'ACTIVE')`;
+      await sql`update couples set status = 'ASSIGNED', updated_at = now() where id = ${data.coupleId}`;
+      await sql.query("commit");
+    } catch (error) {
+      await sql.query("rollback");
+      throw error;
+    }
+    return { ok: true };
+  });
+
 export const memberHome = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await ready();
-  const circle = await loadCircle(sql, "orion");
+  const actor = actorForRequest();
+  if (actor.role === "anonymous" || !canReadCircle(actor, actor.role === "member" ? actor.circleId : "orion")) {
+    throw new Error("This Circle is not available.");
+  }
+  const seated = await sql<{ circle_id: string }>`
+    select circle_id from circle_memberships
+    where couple_id = 'c1' and status = 'ACTIVE'
+    limit 1
+  `;
+  const circleId = actor.role === "member" ? actor.circleId : seated[0]?.circle_id;
+  if (!circleId) throw new Error("No Circle is assigned yet.");
+  if (!canReadCircle(actor, circleId)) throw new Error("This Circle is not available.");
+  const circle = await loadCircle(sql, circleId);
   const events = await sql<{ id: string; title: string; place: string; event_date: string | null }>`
-    select id, title, place, event_date from events where circle_id = 'orion' order by event_date
+    select id, title, place, event_date from events where circle_id = ${circleId} order by event_date
   `;
   const votes = await sql<{ couple_id: string; available: boolean }>`
     select couple_id, available from availability where event_id = 'e1'

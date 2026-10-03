@@ -1,10 +1,15 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { addExpense, getCircle } from "@/lib/club.server";
+import { addExpense, getCircle, listCircles } from "@/lib/club.server";
 
 export const Route = createFileRoute("/admin/kitty")({
   head: () => ({ meta: [{ title: "Kitty · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),
-  loader: () => getCircle({ data: { id: "orion" } }),
+  loader: async () => {
+    const circles = await listCircles();
+    const first = circles[0];
+    if (!first) throw new Error("No Circle yet.");
+    return getCircle({ data: { id: first.id } });
+  },
   component: AdminKitty,
 });
 

@@ -36,7 +36,7 @@ function Applications() {
                 </button>
               ) : null}
               {row.status === "REVIEWING" || row.status === "HOLD" ? (
-                <button type="button" className="h-11" onClick={() => move(row.id, "APPROVED")}>
+                <button type="button" className="h-11" onClick={() => move(row.id, "WAITING_FOR_CIRCLE")}>
                   Approve
                 </button>
               ) : null}

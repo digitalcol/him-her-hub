@@ -12,16 +12,17 @@ import {
 
 test("application status only moves forward along the allowed path", () => {
   assert.equal(canTransition("NEW", "REVIEWING"), true);
-  assert.equal(canTransition("REVIEWING", "APPROVED"), true);
-  assert.equal(canTransition("APPROVED", "DECLINED"), false);
-  assert.equal(displayStatus("APPROVED", false), "WAITING FOR CIRCLE");
-  assert.equal(displayStatus("APPROVED", true), "IN A CIRCLE");
+  assert.equal(canTransition("REVIEWING", "WAITING_FOR_CIRCLE"), true);
+  assert.equal(canTransition("WAITING_FOR_CIRCLE", "ASSIGNED"), true);
+  assert.equal(canTransition("ASSIGNED", "DECLINED"), false);
+  assert.equal(displayStatus("WAITING_FOR_CIRCLE", false), "WAITING FOR CIRCLE");
+  assert.equal(displayStatus("ASSIGNED", true), "IN A CIRCLE");
 });
 
 test("a circle cannot take more couples than its capacity", () => {
   assert.equal(seatsLeft(10, 10), 0);
   assert.equal(canAssign("APPROVED", false, 10, 10), false);
-  assert.equal(canAssign("APPROVED", false, 10, 9), true);
+  assert.equal(canAssign("WAITING_FOR_CIRCLE", false, 10, 9), true);
   assert.equal(canAssign("NEW", false, 10, 0), false);
 });
 

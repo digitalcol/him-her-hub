@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IG_URL, moments } from "@/lib/club";
 
 export const Route = createFileRoute("/")({
@@ -39,6 +39,29 @@ const PATHS = [
 
 function Home() {
   const [open, setOpen] = useState<number | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (open === null) return;
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(null);
+      if (event.key !== "Tab") return;
+      const dialog = closeRef.current?.closest("[role=dialog]");
+      const items = dialog?.querySelectorAll<HTMLElement>("button, a");
+      if (!items || items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
   const laneA = moments.filter((_, index) => index % 2 === 0);
   const laneB = moments.filter((_, index) => index % 2 === 1);
 
@@ -91,7 +114,7 @@ function Home() {
         </div>
       </div>
       {open !== null ? (
-        <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-fg/80 p-6" onClick={() => setOpen(null)}>
+        <dialog open role="dialog" aria-modal="true" aria-label="Moment" className="fixed inset-0 z-50 flex items-center justify-center bg-fg/80 p-6" onClick={() => setOpen(null)}>
           <div className="max-h-full max-w-3xl" onClick={(event) => event.stopPropagation()}>
             <img src={moments[open].src} alt={moments[open].alt} className="max-h-[70vh] w-full object-contain" />
             <div className="mt-3 flex items-center justify-between text-sm text-bg">
@@ -105,7 +128,7 @@ function Home() {
                 Next
               </button>
             </div>
-            <button type="button" className="mt-2 h-11 text-sm text-bg" onClick={() => setOpen(null)}>
+            <button ref={closeRef} type="button" className="mt-2 h-11 text-sm text-bg" onClick={() => setOpen(null)}>
               Close
             </button>
           </div>
@@ -132,7 +155,7 @@ function Lane({
       <div className={`lane-track ${className}`}>
         {loop.map((item, index) => (
           <button key={`${item.src}-${index}`} type="button" className="block w-full" onClick={() => onOpen((index % items.length) * 2 + offset)}>
-            <img src={item.src} alt={item.alt} className="aspect-square w-full object-cover" />
+            <img src={item.src} alt={item.alt} width={800} height={800} loading={index < 2 ? "eager" : "lazy"} className="aspect-square w-full object-cover" />
           </button>
         ))}
       </div>
