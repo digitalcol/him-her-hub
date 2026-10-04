@@ -31,7 +31,9 @@ function Moments() {
       <ul className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {moments.map((moment) => (
           <li key={moment.src}>
-            <img src={moment.src} alt={moment.alt} className="w-full" />
+            <a href={moment.href} target="_blank" rel="noreferrer">
+              <img src={moment.src} alt={moment.alt} className="w-full" />
+            </a>
           </li>
         ))}
       </ul>

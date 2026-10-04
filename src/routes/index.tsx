@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { IG_URL, moments } from "@/lib/club";
+import { moments } from "@/lib/club";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -137,7 +137,7 @@ function Home() {
               <button type="button" className="h-11 px-2" onClick={() => setOpen((open + moments.length - 1) % moments.length)}>
                 Previous
               </button>
-              <a href={IG_URL} className="underline" target="_blank" rel="noreferrer">
+              <a href={moments[open].href} className="underline" target="_blank" rel="noreferrer">
                 View on Instagram
               </a>
               <button type="button" className="h-11 px-2" onClick={() => setOpen((open + 1) % moments.length)}>
