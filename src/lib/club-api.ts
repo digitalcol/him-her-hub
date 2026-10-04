@@ -115,6 +115,7 @@ async function ready() {
   assertActor();
   const sql = await getSql();
   await seed(sql);
+  await ensureRamSita(sql);
   await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
   if (isPreviewMode() && dbSource === "pglite") {
     await sql`insert into expenses (id, circle_id, amount, note, status)
@@ -151,7 +152,40 @@ type CoupleRow = {
   referral: string | null;
   status: AppStatus;
   assigned: boolean;
+  circle: string | null;
 };
+
+async function ensureRamSita(sql: Sql) {
+  const existing = await sql<{ id: string }>`select id from couples where id = 'ram-sita'`;
+  if (existing.length > 0) return;
+  await sql`insert into couples (id, name, area, about, interests, referral, status, photo_consent, organise)
+    values (
+      'ram-sita',
+      'Ram & Sita',
+      'Oklipuram',
+      'We are an amazing couple',
+      'Dining, Travel, Live music, Theatre, Outdoors, House evenings',
+      'Vishal',
+      'NEW',
+      true,
+      'Yes'
+    )`;
+  await sql`insert into people (id, couple_id, first_name, last_name, profession, instagram, phone, email, dob)
+    values ('ram-sita-a', 'ram-sita', 'Ram', 'Jain', 'Artist', 'insta', '9898989898', '1@2.com', '2000-01-01')`;
+  await sql`insert into people (id, couple_id, first_name, last_name, profession, instagram, phone, email, dob)
+    values ('ram-sita-b', 'ram-sita', 'Sita', 'Jain', 'Musician', 'Facebook', '989898989891', '2@1.com', '2001-02-02')`;
+  await sql`insert into application_assets (id, couple_id, role, mime, storage_key) values
+    ('ram-sita-one', 'ram-sita', 'one', 'image/jpeg', 'kept:ram-sita-one'),
+    ('ram-sita-two', 'ram-sita', 'two', 'image/jpeg', 'kept:ram-sita-two'),
+    ('ram-sita-together', 'ram-sita', 'together', 'image/jpeg', 'kept:ram-sita-together')`;
+}
+
+function keptPhoto(key: string) {
+  if (key === "kept:ram-sita-one") return "/kept/ram-sita-one.jpg";
+  if (key === "kept:ram-sita-two") return "/kept/ram-sita-two.jpg";
+  if (key === "kept:ram-sita-together") return "/kept/ram-sita-together.jpg";
+  return "";
+}
 
 async function savePrivatePhoto(dataUrl: string) {
   const match = /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/=\s]+)$/.exec(dataUrl);
@@ -177,6 +211,8 @@ async function savePrivatePhoto(dataUrl: string) {
 const execFileAsync = promisify(execFile);
 
 async function readThumb(key: string) {
+  const kept = keptPhoto(key);
+  if (kept) return kept;
   if (!/^[0-9a-f-]{36}$/i.test(key)) return "";
   const dir = runtimeDataDir("private");
   const src = `${dir}/${key}`;
@@ -203,6 +239,8 @@ async function readThumb(key: string) {
 }
 
 async function readPrivatePhoto(key: string, mime: string) {
+  const kept = keptPhoto(key);
+  if (kept) return kept;
   if (!/^[0-9a-f-]{36}$/i.test(key)) return "";
   try {
     const bytes = await readFile(`${runtimeDataDir("private")}/${key}`);
@@ -215,7 +253,13 @@ async function readPrivatePhoto(key: string, mime: string) {
 async function couples(sql: Sql): Promise<CoupleRow[]> {
   return sql<CoupleRow>`
     select c.id, c.name, c.area, c.about, c.interests, c.referral, c.status,
-      exists(select 1 from circle_memberships m where m.couple_id = c.id) as assigned
+      exists(select 1 from circle_memberships m where m.couple_id = c.id and m.status = 'ACTIVE') as assigned,
+      (
+        select ci.name from circle_memberships m
+        join circles ci on ci.id = m.circle_id
+        where m.couple_id = c.id and m.status = 'ACTIVE'
+        limit 1
+      ) as circle
     from couples c
     order by c.created_at desc
   `;
@@ -265,7 +309,13 @@ export const getApplication = createServerFn({ method: "GET" })
     const sql = await ready();
     const rows = await sql<CoupleRow>`
       select c.id, c.name, c.area, c.about, c.interests, c.referral, c.status,
-        exists(select 1 from circle_memberships m where m.couple_id = c.id) as assigned
+        exists(select 1 from circle_memberships m where m.couple_id = c.id and m.status = 'ACTIVE') as assigned,
+        (
+          select ci.name from circle_memberships m
+          join circles ci on ci.id = m.circle_id
+          where m.couple_id = c.id and m.status = 'ACTIVE'
+          limit 1
+        ) as circle
       from couples c where c.id = ${data.id}
     `;
     const couple = rows[0];

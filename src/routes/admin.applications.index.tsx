@@ -22,7 +22,7 @@ function Applications() {
     <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Operations</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Applications.</h1>
-      <p className="mt-4 text-sm text-muted">One of you, the other, then the two of you. Open a photograph to read the form.</p>
+      <p className="mt-4 text-sm text-muted">Every application stays on this list. Once accepted, the couple also appears in Members, and then in a Circle.</p>
       <ul className="mt-8 divide-y divide-line border-y border-line">
         {rows.map((row) => {
           const [one, two] = row.partners;

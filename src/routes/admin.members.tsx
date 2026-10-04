@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { listApplications } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/members")({
@@ -8,16 +8,22 @@ export const Route = createFileRoute("/admin/members")({
 });
 
 function AdminMembers() {
-  const rows = Route.useLoaderData().filter((row) => row.assigned);
+  const rows = Route.useLoaderData().filter(
+    (row) => row.assigned || row.status === "ASSIGNED" || row.status === "WAITING_FOR_CIRCLE" || row.status === "APPROVED",
+  );
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Operations</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Members.</h1>
+      <p className="mt-4 max-w-xl text-sm text-muted">Everyone who has been accepted. A Circle is where they sit. This list keeps them all.</p>
       <ul className="mt-10 divide-y divide-line border-y border-line">
         {rows.map((row) => (
-          <li key={row.id} className="flex items-baseline justify-between py-4">
-            <p className="font-medium text-fg">{row.name}</p>
-            <p className="text-sm text-muted">{row.area}</p>
+          <li key={row.id} className="flex items-baseline justify-between gap-4 py-4">
+            <Link to="/admin/applications/$id" params={{ id: row.id }} className="font-medium text-fg">
+              {row.name}
+              <span className="ml-2 text-sm font-normal text-muted">{row.area}</span>
+            </Link>
+            <p className="text-sm text-fg">{row.circle ?? "Waiting for a circle"}</p>
           </li>
         ))}
       </ul>
