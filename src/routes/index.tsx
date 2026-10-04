@@ -97,7 +97,11 @@ function Home() {
                 <div key={copy} className="flex gap-2 pr-2" aria-hidden={copy === 1}>
                   {moments.map((item, index) => (
                     <button key={`${item.src}-${copy}`} type="button" className="w-[46vw] max-w-52 shrink-0" onClick={() => setOpen(index)}>
-                      <img src={item.src} alt={copy === 0 ? item.alt : ""} width={640} height={800} loading={index < 2 && copy === 0 ? "eager" : "lazy"} className="aspect-[4/5] w-full object-cover" />
+                      {item.video && copy === 0 ? (
+                        <video src={item.video} poster={item.src} autoPlay muted loop playsInline className="pointer-events-none aspect-[4/5] w-full object-cover" />
+                      ) : (
+                        <img src={item.src} alt={copy === 0 ? item.alt : ""} width={640} height={800} loading={index < 2 && copy === 0 ? "eager" : "lazy"} className="aspect-[4/5] w-full object-cover" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -132,7 +136,13 @@ function Home() {
       {open !== null ? (
         <dialog open role="dialog" aria-modal="true" aria-label="Moment" className="fixed inset-0 z-50 flex items-center justify-center bg-fg/80 p-6" onClick={() => setOpen(null)}>
           <div className="max-h-full max-w-3xl" onClick={(event) => event.stopPropagation()}>
-            <img src={moments[open].src} alt={moments[open].alt} className="max-h-[70vh] w-full object-contain" />
+            {moments[open].video ? (
+              <video src={moments[open].video} poster={moments[open].src} autoPlay controls playsInline className="max-h-[70vh] w-full bg-black" />
+            ) : moments[open].embed ? (
+              <iframe src={moments[open].embed} title={moments[open].alt} className="h-[70vh] w-[min(400px,88vw)] bg-bg" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
+            ) : (
+              <img src={moments[open].src} alt={moments[open].alt} className="max-h-[70vh] w-full object-contain" />
+            )}
             <div className="mt-3 flex items-center justify-between text-sm text-bg">
               <button type="button" className="h-11 px-2" onClick={() => setOpen((open + moments.length - 1) % moments.length)}>
                 Previous
@@ -169,11 +179,19 @@ function Lane({
   return (
     <div className="w-40 shrink-0 lg:w-1/2">
       <div className={`lane-track ${className}`}>
-        {loop.map((item, index) => (
-          <button key={`${item.src}-${index}`} type="button" className="block w-full" onClick={() => onOpen((index % items.length) * 2 + offset)}>
-            <img src={item.src} alt={item.alt} width={800} height={800} loading={index < 2 ? "eager" : "lazy"} className="aspect-square w-full object-cover" />
+        {loop.map((item, index) => {
+        const sourceIndex = (index % items.length) * 2 + offset;
+        const showVideo = Boolean(item.video) && index < items.length;
+        return (
+          <button key={`${item.src}-${index}`} type="button" className="block w-full" onClick={() => onOpen(sourceIndex)}>
+            {showVideo ? (
+              <video src={item.video} poster={item.src} autoPlay muted loop playsInline className="pointer-events-none aspect-square w-full object-cover" />
+            ) : (
+              <img src={item.src} alt={index < items.length ? item.alt : ""} width={800} height={800} loading={index < 2 ? "eager" : "lazy"} className="aspect-square w-full object-cover" />
+            )}
           </button>
-        ))}
+        );
+      })}
       </div>
     </div>
   );

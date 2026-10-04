@@ -31,9 +31,15 @@ function Moments() {
       <ul className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {moments.map((moment) => (
           <li key={moment.src}>
-            <a href={moment.href} target="_blank" rel="noreferrer">
-              <img src={moment.src} alt={moment.alt} className="w-full" />
-            </a>
+            {moment.video ? (
+              <video src={moment.video} poster={moment.src} controls playsInline className="w-full bg-black" />
+            ) : moment.embed ? (
+              <iframe src={moment.embed} title={moment.alt} className="aspect-[4/5] w-full bg-bg" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
+            ) : (
+              <a href={moment.href} target="_blank" rel="noreferrer">
+                <img src={moment.src} alt={moment.alt} className="w-full" />
+              </a>
+            )}
           </li>
         ))}
       </ul>
