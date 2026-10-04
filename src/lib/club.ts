@@ -21,29 +21,9 @@ const alts: Record<string, string> = {
   "post-11.jpg": "A couple on a stage, she in green, he in a silver jacket.",
 };
 
-const links: Record<string, string> = {
-  "post-9.jpg": "https://www.instagram.com/p/DeEJJTDjJud/",
-  "post-10.jpg": "https://www.instagram.com/reel/DeEK2l3zxhN/",
-  "post-11.jpg": "https://www.instagram.com/reel/DeELGiYzDoQ/",
-};
-
-const videos: Record<string, string> = {
-  "post-11.jpg": "/reels/stage.mp4",
-};
-
-const embeds: Record<string, string> = {
-  "post-10.jpg": "https://www.instagram.com/reel/DeEK2l3zxhN/embed",
-};
-
 export const moments = Object.entries(files)
   .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
   .map(([path, src]) => {
     const name = path.split("/").pop() ?? "moment";
-    return {
-      src,
-      alt: alts[name] ?? "A moment from Him Her Hub",
-      href: links[name] ?? IG_URL,
-      video: videos[name],
-      embed: embeds[name],
-    };
+    return { src, alt: alts[name] ?? "A moment from Him Her Hub" };
   });
