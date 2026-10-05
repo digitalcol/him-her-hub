@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { assignCouple, getCircle, markKittyPaid, moveCouple, removeCouple, setWhatsApp } from "@/lib/club-api";
 
@@ -14,6 +14,8 @@ function CircleDetail() {
   const [link, setLink] = useState(circle.whatsapp_url ?? "");
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const savedLink = circle.whatsapp_url ?? "";
+  const linkChanged = link.trim() !== savedLink;
 
   useEffect(() => {
     setLink(circle.whatsapp_url ?? "");
@@ -70,9 +72,15 @@ function CircleDetail() {
           <input className="mt-2 block w-full border border-line bg-bg px-3 py-3" value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://chat.whatsapp.com/..." />
         </label>
         <div className="mt-3 flex items-center gap-4">
-          <button type="submit" className="h-11 bg-fg px-4 text-sm text-bg">
-            Save
-          </button>
+          {linkChanged ? (
+            <button type="submit" className="h-11 bg-fg px-4 text-sm text-bg">
+              Save
+            </button>
+          ) : savedLink ? (
+            <a href={savedLink} className="inline-flex h-11 items-center text-sm font-medium text-fg underline" target="_blank" rel="noreferrer">
+              Open group
+            </a>
+          ) : null}
           {note ? <p className="text-sm text-muted">{note}</p> : null}
         </div>
       </form>
@@ -86,7 +94,9 @@ function CircleDetail() {
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <p className="font-medium text-fg">
                   <span className="mr-3 text-muted">{member.host_order ?? "–"}</span>
-                  {member.name}
+                  <Link to="/admin/applications/$id" params={{ id: member.id }} className="underline">
+                    {member.name}
+                  </Link>
                   <span className="text-sm font-normal text-muted"> · {member.area}</span>
                   <span className={member.paid ? "ml-3 text-sm font-medium text-[#1f7a3a]" : "ml-3 text-sm font-medium text-[#b42318]"}>
                     {member.paid ? "Paid" : "Unpaid"}
@@ -140,7 +150,9 @@ function CircleDetail() {
           {circle.waiting.map((couple) => (
             <li key={couple.id} className="flex items-center justify-between py-3">
               <p className="text-fg">
-                {couple.name}
+                <Link to="/admin/applications/$id" params={{ id: couple.id }} className="underline">
+                  {couple.name}
+                </Link>
                 <span className="text-muted"> · {couple.area}</span>
               </p>
               <button type="button" className="h-11 text-sm font-medium text-fg" onClick={() => run(() => assignCouple({ data: { circleId: circle.id, coupleId: couple.id } }))}>
