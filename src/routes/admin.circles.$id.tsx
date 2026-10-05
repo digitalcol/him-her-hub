@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { assignCouple, getCircle, markKittyPaid, setWhatsApp } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/circles/$id")({
@@ -12,6 +12,11 @@ function CircleDetail() {
   const circle = Route.useLoaderData();
   const router = useRouter();
   const [link, setLink] = useState(circle.whatsapp_url ?? "");
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLink(circle.whatsapp_url ?? "");
+  }, [circle.whatsapp_url]);
 
   async function add(coupleId: string) {
     await assignCouple({ data: { circleId: circle.id, coupleId } });
@@ -46,20 +51,29 @@ function CircleDetail() {
         {circle.members.length} / {circle.capacity} allotted · kitty remaining ₹{circle.kitty.toLocaleString("en-IN")}
       </p>
       <form
-        className="mt-6 flex items-end gap-3"
+        className="mt-6 max-w-xl"
         onSubmit={async (event: FormEvent) => {
           event.preventDefault();
-          await setWhatsApp({ data: { circleId: circle.id, url: link } });
-          await router.invalidate();
+          setNote(null);
+          try {
+            await setWhatsApp({ data: { circleId: circle.id, url: link } });
+            await router.invalidate();
+            setNote("Saved.");
+          } catch (caught) {
+            setNote(caught instanceof Error ? caught.message : "The link could not be saved.");
+          }
         }}
       >
-        <label className="text-sm text-fg">
+        <label className="block text-sm text-fg">
           WhatsApp group
-          <input className="mt-2 block w-72 border border-line bg-bg px-3 py-3" value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://chat.whatsapp.com/..." />
+          <input className="mt-2 block w-full border border-line bg-bg px-3 py-3" value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://chat.whatsapp.com/..." />
         </label>
-        <button type="submit" className="h-11 bg-fg px-4 text-sm text-bg">
-          Save
-        </button>
+        <div className="mt-3 flex items-center gap-4">
+          <button type="submit" className="h-11 bg-fg px-4 text-sm text-bg">
+            Save
+          </button>
+          {note ? <p className="text-sm text-muted">{note}</p> : null}
+        </div>
       </form>
       <ul className="mt-8 divide-y divide-line border-y border-line">
         {circle.members.map((member) => (
