@@ -9,9 +9,9 @@ export const Route = createFileRoute("/moments")({
 
 function Moments() {
   return (
-    <main className="px-6 py-14 lg:px-12">
+    <main className="px-4 py-10 lg:px-8">
       <p className="text-xs tracking-index text-muted uppercase">Moments</p>
-      <h1 className="mt-3 max-w-3xl text-5xl font-semibold tracking-tight text-balance text-fg">
+      <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight text-balance text-fg lg:text-5xl">
         THIS IS WHAT
         <br />
         IT LOOKS LIKE.
@@ -28,10 +28,10 @@ function Moments() {
           aria-hidden="true"
         />
       </a>
-      <ul className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <ul className="mt-8 grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-6">
         {moments.map((moment) => (
           <li key={moment.src}>
-            <img src={moment.src} alt={moment.alt} className="w-full" />
+            <img src={moment.src} alt={moment.alt} className="aspect-square w-full object-cover" />
           </li>
         ))}
       </ul>
