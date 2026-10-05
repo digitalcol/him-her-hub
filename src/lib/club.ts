@@ -2,7 +2,7 @@ export const WORDMARK = "HIM·HER·HUB.";
 export const IG_URL = "https://www.instagram.com/thehimherhub/";
 export const IG_HANDLE = "@thehimherhub";
 
-const files = import.meta.glob("../assets/moments/*.{jpg,jpeg,png,webp}", {
+const files = import.meta.glob("../assets/moments/*.{jpg,jpeg,png,webp,heic,HEIC,heif,HEIF}", {
   eager: true,
   import: "default",
 }) as Record<string, string>;
@@ -19,8 +19,6 @@ const alts: Record<string, string> = {
   "post-9.jpg": "A couple in wedding clothes, the woman laughing in gold jewellery.",
   "post-10.jpg": "A man in a cream turban and embroidered jacket, hands pressed together.",
   "post-11.jpg": "A couple on a stage, she in green, he in a silver jacket.",
-  "post-12.jpg": "Friends together at night.",
-  "post-13.jpg": "Friends together at night.",
 };
 
 export const moments = Object.entries(files)
