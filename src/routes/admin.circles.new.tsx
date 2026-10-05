@@ -56,8 +56,8 @@ function NewCircle() {
           <textarea className="mt-2 min-h-28 w-full border border-line bg-bg px-3 py-3" name="rules" required placeholder="How this Circle meets, pays, and hosts." />
         </label>
         <Money label="Kitty contribution" name="kitty" />
-        <Money label="Joining fee" name="joining" />
-        <Money label="Annual renewal" name="renewal" />
+        <Money label="Joining fee" name="joining" min={0} />
+        <Money label="Annual renewal" name="renewal" min={0} />
         {error ? <p className="text-sm text-soft">{error}</p> : null}
         <button type="submit" className="h-11 bg-fg px-5 text-sm font-medium text-bg">
           Open this Circle
@@ -67,11 +67,11 @@ function NewCircle() {
   );
 }
 
-function Money({ label, name }: { label: string; name: string }) {
+function Money({ label, name, min = 1 }: { label: string; name: string; min?: number }) {
   return (
     <label className="block text-sm text-fg">
       {label}
-      <input className="mt-2 w-full border border-line bg-bg px-3 py-3" name={name} type="number" min={1} step={1} required />
+      <input className="mt-2 w-full border border-line bg-bg px-3 py-3" name={name} type="number" min={min} step={1} required />
     </label>
   );
 }

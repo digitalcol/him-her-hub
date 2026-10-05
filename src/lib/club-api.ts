@@ -597,13 +597,18 @@ export const createCircle = createServerFn({ method: "POST" })
     if (!isCircleName(name)) throw new Error("Choose a name from the star list.");
     const rules = data.rules.trim();
     if (rules.length < 12) throw new Error("Write the rules for this Circle.");
-    const amounts = [data.kittyAmount, data.joiningFee, data.renewalFee].map((value) => Math.round(Number(value)));
-    if (amounts.some((value) => !Number.isFinite(value) || value <= 0)) throw new Error("Kitty, joining, and renewal must be amounts.");
+    const kitty = Math.round(Number(data.kittyAmount));
+    const joining = Math.round(Number(data.joiningFee));
+    const renewal = Math.round(Number(data.renewalFee));
+    if (!Number.isFinite(kitty) || kitty <= 0) throw new Error("The kitty contribution must be an amount.");
+    if (![joining, renewal].every((value) => Number.isFinite(value) && value >= 0)) {
+      throw new Error("Joining and renewal can be zero, but not blank.");
+    }
     const taken = await sql<{ id: string }>`select id from circles where lower(name) = lower(${name})`;
     if (taken[0]) throw new Error("That name is already a Circle.");
     const id = name.toLowerCase();
     await sql`insert into circles (id, name, city, status, capacity, kitty_amount, joining_fee, renewal_fee, rules, description)
-      values (${id}, ${name}, 'Bangalore', 'FORMING', 10, ${amounts[0]}, ${amounts[1]}, ${amounts[2]}, ${rules}, ${rules})`;
+      values (${id}, ${name}, 'Bangalore', 'FORMING', 10, ${kitty}, ${joining}, ${renewal}, ${rules}, ${rules})`;
     return { id };
   });
 
