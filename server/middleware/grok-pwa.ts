@@ -69,6 +69,19 @@ export default async function grokPwaMiddleware(
 
   const path = event.url.pathname;
   const urlWithQuery = path + event.url.search;
+  const userAgent = event.req.headers.get("user-agent") ?? "";
+
+  if (isDocumentPath(path) && /WhatsApp|facebookexternalhit|Facebot/i.test(userAgent)) {
+    const host = requestHost(event).split(",")[0]?.trim().split(":")[0] || "www.himherhub.com";
+    const origin = `https://${host}`;
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Him Her Hub</title><meta property="og:title" content="Him Her Hub"><meta property="og:description" content="A private social club for couples. Bangalore, India."><meta property="og:type" content="website"><meta property="og:url" content="${origin}/"><meta property="og:site_name" content="Him Her Hub"><meta property="og:image" content="${origin}/og.jpg"><meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="${origin}/og.jpg"></head><body><p>Him Her Hub. A private social club for couples. Bangalore, India.</p></body></html>`;
+    return new Response(html, {
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "public, max-age=300",
+      },
+    });
+  }
 
   if (path === "/__grok/manifest.webmanifest" || path === "/__grok/manifest.json") {
     return new Response(renderWebManifest(requestHost(event)), {
