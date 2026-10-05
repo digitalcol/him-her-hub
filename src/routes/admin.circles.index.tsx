@@ -13,7 +13,7 @@ function Circles() {
     <main className="mx-auto w-full max-w-5xl px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Operations</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Circles.</h1>
-      <p className="mt-4 max-w-xl text-sm text-muted">Each Circle has its own name, rules, and fees. None of this is on the public site.</p>
+      <p className="mt-4 max-w-xl text-sm text-muted">Open a Circle to see who is in it, add someone, remove them, or move them to another Circle.</p>
       <Link to="/admin/circles/new" className="mt-6 inline-flex h-11 items-center text-sm font-medium text-fg">
         New Circle
       </Link>
@@ -30,6 +30,7 @@ function Circles() {
             <p className="text-sm text-muted">
               Kitty ₹{Number(row.kitty_amount).toLocaleString("en-IN")} · Join ₹{Number(row.joining_fee).toLocaleString("en-IN")}
             </p>
+            <p className="text-sm text-fg sm:col-span-4">{row.members.length > 0 ? row.members.map((member) => member.name).join(", ") : "No one in this Circle yet."}</p>
           </li>
         ))}
       </ul>

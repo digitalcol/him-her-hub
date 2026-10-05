@@ -429,7 +429,7 @@ export const submitApplication = createServerFn({ method: "POST" })
 
 export const listCircles = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await ready();
-  return sql<{ id: string; name: string; city: string; status: string; capacity: number; kitty_amount: number; joining_fee: number; renewal_fee: number; taken: number }>`
+  const circles = await sql<{ id: string; name: string; city: string; status: string; capacity: number; kitty_amount: number; joining_fee: number; renewal_fee: number; taken: number }>`
     select c.id, c.name, c.city, c.status, c.capacity, c.kitty_amount, c.joining_fee, c.renewal_fee,
       count(m.couple_id) filter (where m.status = 'ACTIVE') as taken
     from circles c
@@ -437,6 +437,17 @@ export const listCircles = createServerFn({ method: "GET" }).handler(async () =>
     group by c.id
     order by c.name
   `;
+  const seated = await sql<{ circle_id: string; id: string; name: string }>`
+    select m.circle_id, c.id, c.name
+    from circle_memberships m
+    join couples c on c.id = m.couple_id
+    where m.status = 'ACTIVE'
+    order by c.name
+  `;
+  return circles.map((circle) => ({
+    ...circle,
+    members: seated.filter((member) => member.circle_id === circle.id),
+  }));
 });
 
 async function loadCircle(sql: Sql, id: string) {
@@ -468,6 +479,14 @@ async function loadCircle(sql: Sql, id: string) {
   const waiting = (await couples(sql)).filter((row) =>
     canAssign(row.status, row.assigned, Number(circle.capacity), members.length),
   );
+  const others = await sql<{ id: string; name: string; capacity: number; taken: number }>`
+    select c.id, c.name, c.capacity, count(m.couple_id) filter (where m.status = 'ACTIVE') as taken
+    from circles c
+    left join circle_memberships m on m.circle_id = c.id
+    where c.id <> ${id}
+    group by c.id
+    order by c.name
+  `;
   const ledger = await sql<{ kind: LedgerKind; amount: number; note: string }>`
     select kind, amount, note from ledger where circle_id = ${id} order by created_at
   `;
@@ -490,7 +509,7 @@ async function loadCircle(sql: Sql, id: string) {
       bill: row.bill_key ? await readThumb(row.bill_key) : "",
     });
   }
-  return { ...circle, members, waiting, kitty: running, opening, each, bills, ledger };
+  return { ...circle, members, waiting, others, kitty: running, opening, each, bills, ledger };
 }
 
 export const getCircle = createServerFn({ method: "GET" })
@@ -640,14 +659,29 @@ export const moveCouple = createServerFn({ method: "POST" })
       if (!circle) throw new Error("Circle not found.");
       if (Number(circle.taken) >= Number(circle.capacity)) throw new Error("That Circle is full.");
       if (current[0]) await sql`update circle_memberships set status = 'LEFT' where id = ${current[0].id}`;
-      await sql`insert into circle_memberships (id, circle_id, couple_id, status)
-        values (${crypto.randomUUID()}, ${data.toCircleId}, ${data.coupleId}, 'ACTIVE')`;
+      await sql`insert into circle_memberships (id, circle_id, couple_id, status, host_order)
+        values (${crypto.randomUUID()}, ${data.toCircleId}, ${data.coupleId}, 'ACTIVE', ${Number(circle.taken) + 1})`;
       await sql`update couples set status = 'ASSIGNED', updated_at = now() where id = ${data.coupleId}`;
       await sql.query("commit");
     } catch (error) {
       await sql.query("rollback");
       throw error;
     }
+    return { ok: true };
+  });
+
+export const removeCouple = createServerFn({ method: "POST" })
+  .validator((data: { circleId: string; coupleId: string }) => data)
+  .handler(async ({ data }) => {
+    const sql = await ready();
+    if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
+    const current = await sql<{ id: string }>`
+      select id from circle_memberships
+      where circle_id = ${data.circleId} and couple_id = ${data.coupleId} and status = 'ACTIVE'
+    `;
+    if (!current[0]) throw new Error("That couple is not in this Circle.");
+    await sql`update circle_memberships set status = 'LEFT' where id = ${current[0].id}`;
+    await sql`update couples set status = 'WAITING_FOR_CIRCLE', updated_at = now() where id = ${data.coupleId}`;
     return { ok: true };
   });
 
