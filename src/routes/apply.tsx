@@ -65,11 +65,30 @@ function Apply() {
   }
 
   if (slot?.filled) {
+    const people = [slot.one, slot.two];
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
         <p className="text-xs tracking-index text-muted uppercase">Orion</p>
         <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">{slot.name}</h1>
-        <p className="mt-4 max-w-xl text-base text-pretty text-soft">This form has already been received.</p>
+        {slot.photos.length > 0 ? (
+          <div className="mt-8 flex gap-3">
+            {slot.photos.map((photo) => (
+              <img key={photo.role} src={photo.src} alt="" className="size-24 rounded-full object-cover" />
+            ))}
+          </div>
+        ) : null}
+        <ul className="mt-10 divide-y divide-line border-y border-line">
+          {people.map((person) => (
+            <li key={person.email || person.first_name} className="py-4 text-sm">
+              <p className="font-medium text-fg">
+                {person.first_name} {person.last_name}
+              </p>
+              <p className="mt-1 text-muted">{[person.profession, person.phone, person.email, person.instagram].filter(Boolean).join(" · ")}</p>
+            </li>
+          ))}
+        </ul>
+        {slot.area ? <p className="mt-6 text-sm text-fg">{slot.area}</p> : null}
+        {slot.about ? <p className="mt-3 max-w-xl text-sm text-pretty text-soft">{slot.about}</p> : null}
       </main>
     );
   }

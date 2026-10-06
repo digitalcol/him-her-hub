@@ -500,15 +500,29 @@ export const getRosterSlot = createServerFn({ method: "GET" })
     `;
     const row = rows[0];
     if (!row) return null;
-    const people = await sql<{ first_name: string; last_name: string }>`
-      select first_name, last_name from people where couple_id = ${data.id} order by id
+    const people = await sql<{ first_name: string; last_name: string; phone: string; email: string; profession: string; instagram: string }>`
+      select first_name, last_name, phone, email, profession, instagram from people where couple_id = ${data.id} order by id
     `;
+    const couple = await sql<{ area: string; about: string }>`select area, about from couples where id = ${data.id}`;
+    const photos: { role: string; src: string }[] = [];
+    if (row.filled) {
+      const assets = await sql<{ role: string; storage_key: string }>`
+        select role, storage_key from application_assets where couple_id = ${data.id}
+      `;
+      for (const asset of assets) {
+        const src = await readThumb(asset.storage_key);
+        if (src) photos.push({ role: asset.role, src });
+      }
+    }
     return {
       id: row.id,
       name: row.name,
       filled: row.filled,
-      one: people[0] ?? { first_name: "", last_name: "" },
-      two: people[1] ?? { first_name: "", last_name: "" },
+      area: couple[0]?.area ?? "",
+      about: couple[0]?.about ?? "",
+      photos,
+      one: people[0] ?? { first_name: "", last_name: "", phone: "", email: "", profession: "", instagram: "" },
+      two: people[1] ?? { first_name: "", last_name: "", phone: "", email: "", profession: "", instagram: "" },
     };
   });
 
@@ -648,7 +662,12 @@ async function loadCircle(sql: Sql, id: string) {
     order by created_at
   `;
   const each = Number(circle.kitty_amount);
-  const opening = members.length * each;
+  const received = await sql<{ total: number }>`
+    select coalesce(sum(expected_amount), 0) as total
+    from contributions
+    where circle_id = ${id} and status = 'PAID'
+  `;
+  const opening = Number(received[0]?.total ?? 0);
   let running = opening;
   const bills = [];
   for (const row of billRows) {

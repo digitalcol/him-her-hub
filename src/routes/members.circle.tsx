@@ -19,7 +19,9 @@ function MemberCircle() {
         {circle.members.map((member) => (
           <li key={member.id} className="flex items-baseline justify-between gap-6 py-4">
             <p className="min-w-0 font-medium text-fg">
-              {member.name}
+              <a href={`/apply?for=${member.id}`} className="underline">
+                {member.name}
+              </a>
               <PaidMark paid={member.paid} />
               {member.host_label ? <span className="mt-1 block text-sm font-normal text-muted">{member.host_label}</span> : null}
             </p>
