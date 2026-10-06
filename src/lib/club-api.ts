@@ -170,7 +170,7 @@ const ORION_ROSTER = [
   ["orion-priyanka-deepesh", "Priyanka", "", "Deepesh", "", "Dec-26", 5, false],
   ["orion-rachana-yash", "Rachana", "", "Yash", "", "Jan-27", 6, false],
   ["orion-seema-dilip", "Seema", "", "Dilip", "", "Feb-27", 7, true],
-  ["orion-vishaka-anand", "Vishaka", "", "Anand", "", "Mar-27", 8, false],
+  ["orion-vishaka-anand", "Meenu", "", "Sripal", "", "Mar-27", 8, false],
   ["orion-ankita-kunal", "Ankita", "", "Kunal", "", "Apr-27", 9, false],
 ] as const;
 
@@ -195,6 +195,15 @@ async function ensureOrionRoster(sql: Sql) {
         values (${`${id}-a`}, ${id}, ${one}, ${oneLast})`;
       await sql`insert into people (id, couple_id, first_name, last_name)
         values (${`${id}-b`}, ${id}, ${two}, ${twoLast})`;
+    } else {
+      const filled = await sql<{ id: string }>`
+        select id from people where couple_id = ${id} and email is not null and email <> '' limit 1
+      `;
+      if (filled.length === 0) {
+        await sql`update couples set name = ${name} where id = ${id}`;
+        await sql`update people set first_name = ${one}, last_name = ${oneLast} where id = ${`${id}-a`}`;
+        await sql`update people set first_name = ${two}, last_name = ${twoLast} where id = ${`${id}-b`}`;
+      }
     }
     const member = await sql<{ id: string }>`
       select id from circle_memberships where circle_id = ${circleId} and couple_id = ${id} and status = 'ACTIVE'
