@@ -115,7 +115,7 @@ async function ready() {
   assertActor();
   const sql = await getSql();
   await seed(sql);
-  await ensureRamSita(sql);
+  await removeRamSita(sql);
   await ensureOrionRoster(sql);
   await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
   if (isPreviewMode() && dbSource === "pglite") {
@@ -224,29 +224,16 @@ async function ensureOrionRoster(sql: Sql) {
   }
 }
 
-async function ensureRamSita(sql: Sql) {
+async function removeRamSita(sql: Sql) {
   const existing = await sql<{ id: string }>`select id from couples where id = 'ram-sita'`;
-  if (existing.length > 0) return;
-  await sql`insert into couples (id, name, area, about, interests, referral, status, photo_consent, organise)
-    values (
-      'ram-sita',
-      'Ram & Sita',
-      'Oklipuram',
-      'We are an amazing couple',
-      'Dining, Travel, Live music, Theatre, Outdoors, House evenings',
-      'Vishal',
-      'NEW',
-      true,
-      'Yes'
-    )`;
-  await sql`insert into people (id, couple_id, first_name, last_name, profession, instagram, phone, email, dob)
-    values ('ram-sita-a', 'ram-sita', 'Ram', 'Jain', 'Artist', 'insta', '9898989898', '1@2.com', '2000-01-01')`;
-  await sql`insert into people (id, couple_id, first_name, last_name, profession, instagram, phone, email, dob)
-    values ('ram-sita-b', 'ram-sita', 'Sita', 'Jain', 'Musician', 'Facebook', '989898989891', '2@1.com', '2001-02-02')`;
-  await sql`insert into application_assets (id, couple_id, role, mime, storage_key) values
-    ('ram-sita-one', 'ram-sita', 'one', 'image/jpeg', 'kept:ram-sita-one'),
-    ('ram-sita-two', 'ram-sita', 'two', 'image/jpeg', 'kept:ram-sita-two'),
-    ('ram-sita-together', 'ram-sita', 'together', 'image/jpeg', 'kept:ram-sita-together')`;
+  if (existing.length === 0) return;
+  await sql`delete from availability where couple_id = 'ram-sita'`;
+  await sql`delete from contributions where couple_id = 'ram-sita'`;
+  await sql`delete from application_assets where couple_id = 'ram-sita'`;
+  await sql`delete from admin_notes where couple_id = 'ram-sita'`;
+  await sql`delete from people where couple_id = 'ram-sita'`;
+  await sql`delete from circle_memberships where couple_id = 'ram-sita'`;
+  await sql`delete from couples where id = 'ram-sita'`;
 }
 
 function keptPhoto(key: string) {

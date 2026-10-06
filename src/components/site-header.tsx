@@ -12,7 +12,6 @@ const ADMIN_LINKS = [
   { to: "/admin/applications", label: "Applications" },
   { to: "/admin/circles", label: "Circles" },
   { to: "/admin/circles/new", label: "New Circle" },
-  { to: "/admin/members", label: "Members" },
   { to: "/admin/kitty", label: "Kitty" },
   { to: "/admin/events", label: "Events" },
   { to: "/admin/notices", label: "Notices" },
@@ -20,8 +19,6 @@ const ADMIN_LINKS = [
 
 const MEMBER_LINKS = [
   { to: "/members/circle", label: "Circle" },
-  { to: "/members/people", label: "Members" },
-  { to: "/members/calendar", label: "Dates" },
   { to: "/members/kitty", label: "Kitty" },
 ] as const;
 
