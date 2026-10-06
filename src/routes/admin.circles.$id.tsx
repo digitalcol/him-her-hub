@@ -94,9 +94,8 @@ function CircleDetail() {
         <ul className="mt-3 divide-y divide-line border-y border-line">
           {circle.members.map((member) => (
             <li key={member.id} className="py-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <p className="font-medium text-fg">
-                  <span className="mr-3 text-muted">{member.host_label ?? member.host_order ?? "–"}</span>
+              <div className="flex items-baseline justify-between gap-6">
+                <p className="min-w-0 font-medium text-fg">
                   {member.filled ? (
                     <Link to="/admin/applications/$id" params={{ id: member.id }} className="underline">
                       {member.name}
@@ -106,19 +105,20 @@ function CircleDetail() {
                       {member.name}
                     </a>
                   )}
-                  <span className="text-sm font-normal text-muted"> · {member.area}</span>
                   <PaidMark paid={member.paid} />
+                  {member.host_label ? <span className="mt-1 block text-sm font-normal text-muted">{member.host_label}</span> : null}
                 </p>
-                <div className="flex gap-4">
-                  {member.paid ? null : (
-                    <button type="button" className="h-11 text-sm text-muted" onClick={() => run(() => markKittyPaid({ data: { circleId: circle.id, coupleId: member.id } }))}>
-                      Mark paid
-                    </button>
-                  )}
-                  <button type="button" className="h-11 text-sm text-muted" onClick={() => run(() => removeCouple({ data: { circleId: circle.id, coupleId: member.id } }))}>
-                    Remove
+                <p className="shrink-0 text-sm text-muted">{member.area}</p>
+              </div>
+              <div className="mt-2 flex gap-4">
+                {member.paid ? null : (
+                  <button type="button" className="h-11 text-sm text-muted" onClick={() => run(() => markKittyPaid({ data: { circleId: circle.id, coupleId: member.id } }))}>
+                    Mark paid
                   </button>
-                </div>
+                )}
+                <button type="button" className="h-11 text-sm text-muted" onClick={() => run(() => removeCouple({ data: { circleId: circle.id, coupleId: member.id } }))}>
+                  Remove
+                </button>
               </div>
               {circle.others.length > 0 ? (
                 <form
