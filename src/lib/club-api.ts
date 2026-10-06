@@ -579,12 +579,16 @@ export const listCircles = createServerFn({ method: "GET" }).handler(async () =>
     group by c.id
     order by c.name
   `;
-  const seated = await sql<{ circle_id: string; id: string; name: string }>`
-    select m.circle_id, c.id, c.name
+  const seated = await sql<{ circle_id: string; id: string; name: string; host_label: string | null; paid: boolean }>`
+    select m.circle_id, c.id, c.name, m.host_label,
+      exists (
+        select 1 from contributions k
+        where k.circle_id = m.circle_id and k.couple_id = c.id and k.status = 'PAID'
+      ) as paid
     from circle_memberships m
     join couples c on c.id = m.couple_id
     where m.status = 'ACTIVE'
-    order by c.name
+    order by m.host_order nulls last, c.name
   `;
   return circles.map((circle) => ({
     ...circle,

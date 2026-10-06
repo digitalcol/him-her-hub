@@ -12,15 +12,11 @@ const ADMIN_LINKS = [
   { to: "/admin/applications", label: "Applications" },
   { to: "/admin/circles", label: "Circles" },
   { to: "/admin/circles/new", label: "New Circle" },
-  { to: "/admin/kitty", label: "Kitty" },
   { to: "/admin/events", label: "Events" },
   { to: "/admin/notices", label: "Notices" },
 ] as const;
 
-const MEMBER_LINKS = [
-  { to: "/members/circle", label: "Circle" },
-  { to: "/members/kitty", label: "Kitty" },
-] as const;
+const MEMBER_LINKS = [{ to: "/members/circle", label: "Circle" }] as const;
 
 export function SiteHeader() {
   const path = useRouterState({ select: (state) => state.location.pathname });

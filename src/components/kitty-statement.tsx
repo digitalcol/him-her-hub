@@ -1,3 +1,11 @@
+export function PaidMark({ paid }: { paid: boolean }) {
+  return (
+    <span className={paid ? "ml-2 inline-flex items-center bg-[#e7f6ec] px-2 py-0.5 text-xs font-medium text-[#1f7a3a]" : "ml-2 inline-flex items-center bg-[#fdeceb] px-2 py-0.5 text-xs font-medium text-[#b42318]"}>
+      {paid ? "Paid" : "Unpaid"}
+    </span>
+  );
+}
+
 export function KittyStatement({
   circle,
   onPaid,
@@ -25,7 +33,7 @@ export function KittyStatement({
           <li key={member.id} className="flex items-center justify-between gap-4 py-3 text-sm">
             <span className="text-fg">{member.name}</span>
             <span className="flex items-center gap-4">
-              <span className={member.paid ? "font-medium text-[#1f7a3a]" : "font-medium text-[#b42318]"}>{member.paid ? "Paid" : "Unpaid"}</span>
+              <PaidMark paid={member.paid} />
               {onPaid && !member.paid ? (
                 <button type="button" className="h-11" onClick={() => onPaid(member.id)}>
                   Mark paid

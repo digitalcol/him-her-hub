@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { assignCouple, getCircle, markKittyPaid, moveCouple, removeCouple, setWhatsApp } from "@/lib/club-api";
+import { assignCouple, addExpense, getCircle, markKittyPaid, moveCouple, removeCouple, setWhatsApp } from "@/lib/club-api";
+import { PaidMark } from "@/components/kitty-statement";
 
 export const Route = createFileRoute("/admin/circles/$id")({
   head: () => ({ meta: [{ title: "Circle · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),
@@ -13,6 +14,8 @@ function CircleDetail() {
   const router = useRouter();
   const [link, setLink] = useState(circle.whatsapp_url ?? "");
   const [note, setNote] = useState<string | null>(null);
+  const [billNote, setBillNote] = useState("");
+  const [billAmount, setBillAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const savedLink = circle.whatsapp_url ?? "";
   const linkChanged = link.trim() !== savedLink;
@@ -104,9 +107,7 @@ function CircleDetail() {
                     </a>
                   )}
                   <span className="text-sm font-normal text-muted"> · {member.area}</span>
-                  <span className={member.paid ? "ml-3 text-sm font-medium text-[#1f7a3a]" : "ml-3 text-sm font-medium text-[#b42318]"}>
-                    {member.paid ? "Paid" : "Unpaid"}
-                  </span>
+                  <PaidMark paid={member.paid} />
                 </p>
                 <div className="flex gap-4">
                   {member.paid ? null : (
@@ -148,6 +149,53 @@ function CircleDetail() {
             </li>
           ))}
         </ul>
+        <p className="mt-4 text-sm text-muted">Kitty remaining ₹{circle.kitty.toLocaleString("en-IN")}</p>
+        <ul className="mt-3 divide-y divide-line border-y border-line">
+          {circle.bills.length === 0 ? <li className="py-3 text-sm text-muted">No bills yet.</li> : null}
+          {circle.bills.map((bill) => (
+            <li key={bill.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+              <span className="flex items-center gap-3 text-fg">
+                {bill.bill ? <img src={bill.bill} alt="" className="size-12 object-cover" /> : null}
+                {bill.note}
+                <span className="text-muted">− ₹{bill.amount.toLocaleString("en-IN")}</span>
+              </span>
+              <span className="text-fg">₹{bill.balance.toLocaleString("en-IN")}</span>
+            </li>
+          ))}
+        </ul>
+        <form
+          className="mt-6 space-y-4"
+          onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            const file = new FormData(event.currentTarget).get("bill");
+            if (!(file instanceof File) || file.size === 0) {
+              setError("Upload the bill.");
+              return;
+            }
+            const bill = await readBill(file);
+            await run(() => addExpense({ data: { circleId: circle.id, amount: Number(billAmount), note: billNote, bill } }));
+            setBillNote("");
+            setBillAmount("");
+            event.currentTarget.reset();
+          }}
+        >
+          <p className="text-xs tracking-index text-muted uppercase">Add a bill</p>
+          <label className="block text-sm text-fg">
+            Event
+            <input className="mt-2 block w-full border border-line bg-bg px-3 py-3" value={billNote} onChange={(event) => setBillNote(event.target.value)} required />
+          </label>
+          <label className="block text-sm text-fg">
+            Amount spent
+            <input className="mt-2 block w-40 border border-line bg-bg px-3 py-3" inputMode="numeric" value={billAmount} onChange={(event) => setBillAmount(event.target.value)} required />
+          </label>
+          <label className="block text-sm text-fg">
+            Bill
+            <input className="mt-2 block w-full text-sm" name="bill" type="file" accept="image/jpeg,image/png,image/webp" required />
+          </label>
+          <button type="submit" className="h-11 bg-fg px-4 text-sm text-bg">
+            Add to the kitty
+          </button>
+        </form>
       </section>
       <section className="mt-8">
         <p className="text-xs tracking-index text-muted uppercase">Add someone</p>
@@ -170,4 +218,14 @@ function CircleDetail() {
       </section>
     </main>
   );
+}
+
+function readBill(file: File) {
+  if (file.size > 6 * 1024 * 1024) throw new Error("The bill must be under 6 MB.");
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("That bill could not be read."));
+    reader.readAsDataURL(file);
+  });
 }

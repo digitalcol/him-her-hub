@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { PaidMark } from "@/components/kitty-statement";
 import { listCircles } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/circles/")({
@@ -30,7 +31,21 @@ function Circles() {
             <p className="text-sm text-muted">
               Kitty ₹{Number(row.kitty_amount).toLocaleString("en-IN")} · Join ₹{Number(row.joining_fee).toLocaleString("en-IN")}
             </p>
-            <p className="text-sm text-fg sm:col-span-4">{row.members.length > 0 ? row.members.map((member) => member.name).join(", ") : "No one in this Circle yet."}</p>
+            <p className="text-sm text-fg sm:col-span-4">
+              {row.members.length === 0 ? (
+                "No one in this Circle yet."
+              ) : (
+                <span className="flex flex-wrap gap-x-4 gap-y-2">
+                  {row.members.map((member) => (
+                    <span key={member.id}>
+                      {member.host_label ? <span className="mr-2 text-muted">{member.host_label}</span> : null}
+                      {member.name}
+                      <PaidMark paid={member.paid} />
+                    </span>
+                  ))}
+                </span>
+              )}
+            </p>
           </li>
         ))}
       </ul>

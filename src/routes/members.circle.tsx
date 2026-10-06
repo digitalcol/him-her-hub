@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { PaidMark } from "@/components/kitty-statement";
 import { memberHome } from "@/lib/club-api";
 
 export const Route = createFileRoute("/members/circle")({
@@ -54,15 +55,32 @@ function MemberCircle() {
           <li key={member.id} className="flex gap-4 py-3 text-sm">
             <span className="w-16 text-muted">{member.host_label ?? member.host_order ?? "–"}</span>
             {member.filled ? (
-              <span className="text-fg">{member.name}</span>
+              <span className="text-fg">
+                {member.name}
+                <PaidMark paid={member.paid} />
+              </span>
             ) : (
               <a href={`/apply?for=${member.id}`} className="text-fg underline">
                 {member.name}
+                <PaidMark paid={member.paid} />
               </a>
             )}
           </li>
         ))}
       </ol>
+      {circle.bills.length > 0 ? (
+        <ul className="mt-3 divide-y divide-line border-y border-line">
+          {circle.bills.map((bill) => (
+            <li key={bill.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+              <span className="text-fg">
+                {bill.note}
+                <span className="text-muted"> − ₹{bill.amount.toLocaleString("en-IN")}</span>
+              </span>
+              <span className="text-fg">₹{bill.balance.toLocaleString("en-IN")}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {next ? (
         <p className="mt-8 text-lg font-medium text-fg">
           Next · {next.title}
