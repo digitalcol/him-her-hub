@@ -19,6 +19,7 @@ function MemberCircle() {
         {circle.members.map((member) => {
           const [one, two] = member.partners;
           const href = `/apply?for=${member.id}`;
+          const hasPhotos = Boolean(member.portraits.one || member.portraits.two || member.portraits.together);
           return (
             <li key={member.id} className="py-8">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
@@ -32,9 +33,12 @@ function MemberCircle() {
                     {member.name}
                   </a>
                   <p className={member.paid ? "mt-2 text-sm font-medium text-[#1f7a3a]" : "mt-2 text-sm font-medium text-[#b42318]"}>{member.paid ? "Paid" : "Unpaid"}</p>
-                  <p className="mt-1 text-sm text-muted">
-                    {[member.host_label, member.area].filter(Boolean).join(" · ")}
-                  </p>
+                  <p className="mt-1 text-sm text-muted">{[member.host_label, member.area].filter(Boolean).join(" · ")}</p>
+                  {member.filled && !hasPhotos ? (
+                    <a href={href} className="mt-3 inline-flex text-sm font-medium text-fg underline">
+                      Add the photographs
+                    </a>
+                  ) : null}
                 </div>
               </div>
             </li>

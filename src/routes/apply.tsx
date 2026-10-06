@@ -186,8 +186,9 @@ function PhotoReplace({ coupleId }: { coupleId: string }) {
 
   return (
     <form className="mt-8 space-y-6" onSubmit={onSubmit}>
-      <PhotoPick label="Photograph" name="one-photo" />
-      <PhotoPick label="Photograph" name="two-photo" />
+      <p className="max-w-xl text-base text-soft">The details are in. The photographs did not come through. Add them here and they will show on the Circle.</p>
+      <PhotoPick label="One of you" name="one-photo" />
+      <PhotoPick label="The other" name="two-photo" />
       <PhotoPick label="A photograph of the two of you" name="together-photo" />
       {error ? <p className="text-sm text-soft">{error}</p> : null}
       <button type="submit" className="h-11 bg-fg px-5 text-sm font-medium text-bg">
