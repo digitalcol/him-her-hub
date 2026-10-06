@@ -14,6 +14,15 @@ export const Route = createFileRoute("/apply")({
 
 const INTERESTS = ["Dining", "Travel", "Live music", "Theatre", "Outdoors", "House evenings", "Brunch", "Art", "Sports", "Weekend trips", "Food", "Wellness"];
 
+function instagramHandle(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^@/, "")
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+    .replace(/\/.*$/, "")
+    .replace(/\?.*$/, "");
+}
+
 function Apply() {
   const slot = Route.useLoaderData();
   const [sent, setSent] = useState(false);
@@ -70,24 +79,29 @@ function Apply() {
       <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
         <p className="text-xs tracking-index text-muted uppercase">Orion</p>
         <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">{slot.name}</h1>
-        {slot.photos.length > 0 ? (
-          <div className="mt-8 flex gap-3">
-            {slot.photos.map((photo) => (
-              <img key={photo.role} src={photo.src} alt="" className="size-24 rounded-full object-cover" />
-            ))}
-          </div>
+        {slot.photoCount > 0 ? (
+          <p className="mt-6 text-sm text-muted">Photographs are on file.</p>
         ) : (
           <PhotoReplace coupleId={slot.id} />
         )}
         <ul className="mt-10 divide-y divide-line border-y border-line">
-          {people.map((person) => (
-            <li key={person.email || person.first_name} className="py-4 text-sm">
-              <p className="font-medium text-fg">
-                {person.first_name} {person.last_name}
-              </p>
-              <p className="mt-1 text-muted">{[person.profession, person.phone, person.email, person.instagram].filter(Boolean).join(" · ")}</p>
-            </li>
-          ))}
+          {people.map((person) => {
+            const handle = instagramHandle(person.instagram);
+            const details = [person.profession, person.phone, person.email].filter(Boolean).join(" · ");
+            return (
+              <li key={person.email || person.first_name} className="py-4 text-sm">
+                <p className="font-medium text-fg">
+                  {person.first_name} {person.last_name}
+                </p>
+                {details ? <p className="mt-1 text-muted">{details}</p> : null}
+                {handle ? (
+                  <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-fg underline underline-offset-2">
+                    Instagram @{handle}
+                  </a>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
         {slot.area ? <p className="mt-6 text-sm text-fg">{slot.area}</p> : null}
         {slot.about ? <p className="mt-3 max-w-xl text-sm text-pretty text-soft">{slot.about}</p> : null}
