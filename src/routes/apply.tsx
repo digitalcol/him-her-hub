@@ -120,10 +120,7 @@ function Apply() {
           <Field label="Bangalore area" name="area" required />
           <Field label="Anniversary" name="anniversary" type="date" />
           <Field label="Referred by" name="referred" />
-          <label className="block text-sm text-fg">
-            A photograph of the two of you
-            <input className="mt-2 block w-full text-sm" name="together-photo" type="file" accept="image/jpeg,image/png,image/webp" required />
-          </label>
+          <PhotoPick label="A photograph of the two of you" name="together-photo" />
         </fieldset>
         <fieldset className="space-y-4">
           <legend className="text-xs tracking-index text-muted uppercase">04 / A little about you</legend>
@@ -161,6 +158,26 @@ function Apply() {
   );
 }
 
+function PhotoPick({ label, name }: { label: string; name: string }) {
+  const [file, setFile] = useState("");
+  return (
+    <label className="block text-sm text-fg">
+      {label}
+      <span className="mt-2 flex min-h-16 w-full items-center justify-center border border-fg bg-fg px-4 text-center text-base font-medium text-bg">
+        {file || "Tap to add a photograph"}
+      </span>
+      <input
+        className="sr-only"
+        name={name}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+        required
+        onChange={(event) => setFile(event.target.files?.[0]?.name ?? "")}
+      />
+    </label>
+  );
+}
+
 function Partner({ title, who, first = "", last = "" }: { title: string; who: "one" | "two"; first?: string; last?: string }) {
   return (
     <fieldset className="min-w-0 space-y-4">
@@ -172,10 +189,7 @@ function Partner({ title, who, first = "", last = "" }: { title: string; who: "o
       <Field label="Email" name={`${who}-email`} type="email" required />
       <Field label="Profession" name={`${who}-profession`} required />
       <Field label="Instagram" name={`${who}-instagram`} />
-      <label className="block text-sm text-fg">
-        Photograph
-        <input className="mt-2 block w-full text-sm" name={`${who}-photo`} type="file" accept="image/jpeg,image/png,image/webp" required />
-      </label>
+      <PhotoPick label="Photograph" name={`${who}-photo`} />
     </fieldset>
   );
 }
