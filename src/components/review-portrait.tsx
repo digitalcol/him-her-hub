@@ -19,9 +19,13 @@ export function ReviewPortrait({
   const body = (
     <span className="flex w-[4.75rem] shrink-0 flex-col items-center gap-2">
       <span className={`grid size-[4.75rem] place-items-center rounded-full p-[3px] ${ring}`}>
-        <span className="grid size-full place-items-center overflow-hidden rounded-full bg-bg p-[3px]">
+        <span className="grid size-full place-items-center overflow-hidden rounded-full bg-bg">
           {src ? (
-            <img src={src} alt="" className="size-full rounded-full object-cover" />
+            <img
+              src={src}
+              alt=""
+              className="size-[78%] rounded-full object-cover object-[center_18%]"
+            />
           ) : (
             <span className="text-sm font-medium text-muted">{label.slice(0, 1)}</span>
           )}
