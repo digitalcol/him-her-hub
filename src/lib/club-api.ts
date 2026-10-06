@@ -184,9 +184,8 @@ async function ensureOrionRoster(sql: Sql) {
     circles = await sql<{ id: string; kitty_amount: number }>`select id, kitty_amount from circles where id = 'orion'`;
   }
   const circleId = circles[0].id;
-  const kitty = Number(circles[0].kitty_amount);
   await sql`update circles set capacity = greatest(capacity, 10) where id = ${circleId}`;
-  for (const [id, one, oneLast, two, twoLast, month, order, paid] of ORION_ROSTER) {
+  for (const [id, one, oneLast, two, twoLast, month, order] of ORION_ROSTER) {
     const name = twoLast ? `${one} & ${two} ${twoLast}` : `${one} & ${two}`;
     const existing = await sql<{ id: string }>`select id from couples where id = ${id}`;
     if (existing.length === 0) {
@@ -209,18 +208,6 @@ async function ensureOrionRoster(sql: Sql) {
             host_label = coalesce(host_label, ${month})
         where id = ${member[0].id}`;
     }
-    if (!paid) continue;
-    const already = await sql<{ n: number }>`
-      select count(*) as n from contributions where circle_id = ${circleId} and couple_id = ${id} and status = 'PAID'
-    `;
-    if (Number(already[0]?.n) > 0) continue;
-    const contributionId = `con-${id}`;
-    await sql`insert into contributions (id, circle_id, couple_id, expected_amount, status, paid_at, recorded_by)
-      values (${contributionId}, ${circleId}, ${id}, ${kitty}, 'PAID', now(), 'roster')
-      on conflict (id) do nothing`;
-    await sql`insert into ledger (id, circle_id, kind, amount, note, reference_type, reference_id, created_by)
-      values (${`pay-${id}`}, ${circleId}, 'CONTRIBUTION', ${kitty}, ${name}, 'CONTRIBUTION', ${contributionId}, 'roster')
-      on conflict (id) do nothing`;
   }
 }
 
@@ -737,10 +724,15 @@ export const markKittyPaid = createServerFn({ method: "POST" })
     if (!amount) throw new Error("Circle not found.");
     await sql.query("begin");
     try {
-      const already = await sql<{ n: number }>`
-        select count(*) as n from contributions where circle_id = ${data.circleId} and couple_id = ${data.coupleId} and status = 'PAID'
+      const already = await sql<{ id: string }>`
+        select id from contributions where circle_id = ${data.circleId} and couple_id = ${data.coupleId} and status = 'PAID'
       `;
-      if (Number(already[0]?.n) === 0) {
+      if (already.length > 0) {
+        for (const row of already) {
+          await sql`delete from ledger where reference_type = 'CONTRIBUTION' and reference_id = ${row.id}`;
+          await sql`delete from contributions where id = ${row.id}`;
+        }
+      } else {
         const contributionId = crypto.randomUUID();
         await sql`insert into contributions (id, circle_id, couple_id, expected_amount, status, paid_at, recorded_by)
           values (${contributionId}, ${data.circleId}, ${data.coupleId}, ${amount}, 'PAID', now(), 'admin')`;
