@@ -18,16 +18,17 @@ export function ReviewPortrait({
     : "bg-line";
   const body = (
     <span className="flex w-[4.75rem] shrink-0 flex-col items-center gap-2">
-      <span className={`grid size-[4.75rem] place-items-center rounded-full p-[3px] ${ring}`}>
-        <span className="grid size-full place-items-center overflow-hidden rounded-full bg-bg">
+      <span className={`relative grid size-[4.75rem] place-items-center rounded-full p-[3px] ${ring}`}>
+        <span className="relative block size-full overflow-hidden rounded-full bg-bg">
           {src ? (
             <img
               src={src}
               alt=""
-              className="size-[78%] rounded-full object-cover object-[center_18%]"
+              className="absolute top-1/2 left-1/2 rounded-full object-cover object-[center_20%]"
+              style={{ width: "76%", height: "76%", transform: "translate(-50%, -50%)" }}
             />
           ) : (
-            <span className="text-sm font-medium text-muted">{label.slice(0, 1)}</span>
+            <span className="absolute inset-0 grid place-items-center text-sm font-medium text-muted">{label.slice(0, 1)}</span>
           )}
         </span>
       </span>
