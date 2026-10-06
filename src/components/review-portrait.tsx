@@ -13,24 +13,25 @@ export function ReviewPortrait({
   href?: string;
   attention?: boolean;
 }) {
-  const ring = attention
-    ? "bg-[conic-gradient(from_210deg,#f9ce34,#f77737,#ee2a7b,#8134af,#f9ce34)]"
-    : "bg-line";
+  const ring = attention ? "ring-2 ring-[#ee2a7b]" : "ring-1 ring-line";
+  const together = label === "Together";
   const body = (
     <span className="flex w-[4.75rem] shrink-0 flex-col items-center gap-2">
-      <span className={`relative grid size-[4.75rem] place-items-center rounded-full p-[3px] ${ring}`}>
-        <span className="relative block size-full overflow-hidden rounded-full bg-bg">
-          {src ? (
-            <img
-              src={src}
-              alt=""
-              className="absolute top-1/2 left-1/2 rounded-full object-cover object-[center_20%]"
-              style={{ width: "76%", height: "76%", transform: "translate(-50%, -50%)" }}
-            />
-          ) : (
-            <span className="absolute inset-0 grid place-items-center text-sm font-medium text-muted">{label.slice(0, 1)}</span>
-          )}
-        </span>
+      <span className={`relative block size-[4.75rem] overflow-hidden rounded-full bg-line ${ring}`}>
+        {src ? (
+          <img
+            src={src}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+            style={{
+              objectPosition: together ? "center 32%" : "center 16%",
+              transform: together ? "scale(1.35)" : "scale(1.7)",
+              transformOrigin: together ? "center 32%" : "center 16%",
+            }}
+          />
+        ) : (
+          <span className="absolute inset-0 grid place-items-center text-sm font-medium text-muted">{label.slice(0, 1)}</span>
+        )}
       </span>
       <span className="w-full truncate text-center text-xs text-fg">{label}</span>
     </span>
