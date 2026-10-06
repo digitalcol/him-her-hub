@@ -566,6 +566,8 @@ export const completeRoster = createServerFn({ method: "POST" })
       await sql`insert into application_assets (id, couple_id, role, mime, storage_key)
         values (${crypto.randomUUID()}, ${data.coupleId}, ${role}, ${saved.mime}, ${saved.key})`;
     }
+    const { openMember } = await import("@/lib/member-session.server");
+    openMember(data.coupleId);
     return { id: data.coupleId };
   });
 
@@ -835,23 +837,40 @@ export const removeCouple = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const deskEvents = createServerFn({ method: "GET" }).handler(async () => {
+  const sql = await readyOps();
+  const circles = await sql<{ id: string; name: string }>`select id, name from circles order by name limit 1`;
+  const circle = circles[0];
+  if (!circle) throw new Error("No Circle yet.");
+  const events = await sql<{ id: string; title: string; place: string; event_date: string | null; host_name: string | null }>`
+    select e.id, e.title, e.place, e.event_date, host.name as host_name
+    from events e
+    left join couples host on host.id = e.host_couple_id
+    where e.circle_id = ${circle.id}
+    order by e.event_date
+  `;
+  const replies = await sql<{ event_id: string; couple_id: string; name: string; available: boolean; choice: string | null }>`
+    select a.event_id, a.couple_id, c.name, a.available, a.choice
+    from availability a
+    join couples c on c.id = a.couple_id
+    join events e on e.id = a.event_id
+    where e.circle_id = ${circle.id}
+  `;
+  return { circle, events, replies };
+});
+
 export const memberHome = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await ready();
-  const actor = actorForRequest();
-  if (actor.role === "anonymous" || !canReadCircle(actor, actor.role === "member" ? actor.circleId : "orion")) {
-    throw new Error("This Circle is not available.");
-  }
+  const { memberCoupleId } = await import("@/lib/member-session.server");
+  const coupleId = memberCoupleId();
+  if (!coupleId) throw new Error("Sign in to see your Circle.");
   const seated = await sql<{ circle_id: string }>`
     select circle_id from circle_memberships
-    where couple_id = 'c1' and status = 'ACTIVE'
+    where couple_id = ${coupleId} and status = 'ACTIVE'
     limit 1
   `;
-  const named = seated[0]
-    ? []
-    : await sql<{ id: string }>`select id from circles where lower(name) = 'orion' order by id limit 1`;
-  const circleId = actor.role === "member" ? actor.circleId : (seated[0]?.circle_id ?? named[0]?.id);
+  const circleId = seated[0]?.circle_id;
   if (!circleId) throw new Error("No Circle is assigned yet.");
-  if (!canReadCircle(actor, circleId)) throw new Error("This Circle is not available.");
   const circle = await loadCircle(sql, circleId);
   const events = await sql<{ id: string; title: string; place: string; event_date: string | null; host_name: string | null }>`
     select e.id, e.title, e.place, e.event_date, host.name as host_name
@@ -879,7 +898,7 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     select count(*) as n from contributions where circle_id = ${circleId} and status = 'PAID'
   `;
   const yours = await sql<{ status: string }>`
-    select status from contributions where circle_id = ${circleId} and couple_id = 'c1' and status = 'PAID' limit 1
+    select status from contributions where circle_id = ${circleId} and couple_id = ${coupleId} and status = 'PAID' limit 1
   `;
   return {
     circle,
@@ -887,7 +906,7 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     votes,
     replies,
     notices,
-    you: "c1",
+    you: coupleId,
     funding: {
       paid: Number(paid[0]?.n ?? 0),
       seats: Number(circle.capacity),

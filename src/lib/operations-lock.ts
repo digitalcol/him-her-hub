@@ -17,3 +17,9 @@ export const unlockOperations = createServerFn({ method: "POST" })
     if (!acceptAnswer(data.answer ?? "")) throw new Error("That is not correct.");
     return { ok: true };
   });
+
+export const lockOperations = createServerFn({ method: "POST" }).handler(async () => {
+  const { closeOperations } = await import("@/lib/operations-lock.server");
+  closeOperations();
+  return { ok: true };
+});

@@ -33,25 +33,38 @@ function MemberCircle() {
           </li>
         ))}
       </ul>
-      <p className="mt-8 text-sm text-muted">Kitty remaining ₹{circle.kitty.toLocaleString("en-IN")}</p>
+      <dl className="mt-8 grid gap-4 text-sm sm:grid-cols-3">
+        <div>
+          <dt className="text-muted">Kitty contribution</dt>
+          <dd className="mt-1 text-fg">₹{Number(circle.kitty_amount).toLocaleString("en-IN")}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">Joining fee</dt>
+          <dd className="mt-1 text-fg">₹{Number(circle.joining_fee).toLocaleString("en-IN")}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">Annual renewal</dt>
+          <dd className="mt-1 text-fg">₹{Number(circle.renewal_fee).toLocaleString("en-IN")}</dd>
+        </div>
+      </dl>
+      <p className="mt-6 text-sm text-fg">Balance ₹{circle.kitty.toLocaleString("en-IN")}</p>
       {circle.whatsapp_url ? (
         <a href={circle.whatsapp_url} className="mt-6 inline-flex h-11 items-center text-sm font-medium text-fg underline" target="_blank" rel="noreferrer">
           Join the WhatsApp group
         </a>
       ) : null}
-      {circle.bills.length > 0 ? (
-        <ul className="mt-3 divide-y divide-line border-y border-line">
-          {circle.bills.map((bill) => (
-            <li key={bill.id} className="flex items-center justify-between gap-4 py-3 text-sm">
-              <span className="text-fg">
-                {bill.note}
-                <span className="text-muted"> − ₹{bill.amount.toLocaleString("en-IN")}</span>
-              </span>
-              <span className="text-fg">₹{bill.balance.toLocaleString("en-IN")}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <ul className="mt-6 divide-y divide-line border-y border-line">
+        {circle.bills.length === 0 ? <li className="py-3 text-sm text-muted">No bills yet.</li> : null}
+        {circle.bills.map((bill) => (
+          <li key={bill.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+            <span className="text-fg">
+              {bill.note}
+              <span className="text-muted"> − ₹{bill.amount.toLocaleString("en-IN")}</span>
+            </span>
+            <span className="text-fg">₹{bill.balance.toLocaleString("en-IN")}</span>
+          </li>
+        ))}
+      </ul>
       {next ? (
         <p className="mt-8 text-lg font-medium text-fg">
           Next · {next.title}

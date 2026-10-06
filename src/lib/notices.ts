@@ -40,32 +40,40 @@ export const listNotices = createServerFn({ method: "GET" }).handler(async () =>
 export const proposeDate = createServerFn({ method: "POST" })
   .validator((data: { title: string; place: string; eventDate: string }) => data)
   .handler(async ({ data }) => {
-    const { sql, actor } = await db();
-    if (actor.role === "anonymous") throw new Error("Not allowed.");
+    const { sql } = await db();
+    const { memberCoupleId } = await import("@/lib/member-session.server");
+    const coupleId = memberCoupleId();
+    if (!coupleId) throw new Error("Sign in to see your Circle.");
     const title = data.title.trim();
     const place = data.place.trim();
     if (!title || !place || !data.eventDate) throw new Error("A date needs a title, a place, and a day.");
     const seated = await sql<{ circle_id: string }>`
-      select circle_id from circle_memberships where couple_id = 'c1' and status = 'ACTIVE' limit 1
+      select circle_id from circle_memberships where couple_id = ${coupleId} and status = 'ACTIVE' limit 1
     `;
     const circleId = seated[0]?.circle_id;
     if (!circleId) throw new Error("No Circle is assigned yet.");
     await sql`insert into events (id, circle_id, title, place, event_date, host_couple_id, status)
-      values (${crypto.randomUUID()}, ${circleId}, ${title}, ${place}, ${data.eventDate}, 'c1', 'PROPOSED')`;
+      values (${crypto.randomUUID()}, ${circleId}, ${title}, ${place}, ${data.eventDate}, ${coupleId}, 'PROPOSED')`;
     return { ok: true };
   });
 
 export const setReply = createServerFn({ method: "POST" })
   .validator((data: { eventId: string; choice: string }) => data)
   .handler(async ({ data }) => {
-    const { sql, actor } = await db();
-    if (actor.role === "anonymous") throw new Error("Not allowed.");
+    const { sql } = await db();
+    const { memberCoupleId } = await import("@/lib/member-session.server");
+    const coupleId = memberCoupleId();
+    if (!coupleId) throw new Error("Sign in to see your Circle.");
     if (!REPLIES.includes(data.choice as (typeof REPLIES)[number])) throw new Error("Choose a reply.");
-    const event = await sql<{ id: string }>`select id from events where id = ${data.eventId}`;
+    const event = await sql<{ id: string }>`
+      select e.id from events e
+      join circle_memberships m on m.circle_id = e.circle_id and m.couple_id = ${coupleId} and m.status = 'ACTIVE'
+      where e.id = ${data.eventId}
+    `;
     if (!event[0]) throw new Error("That date was not found.");
     const available = data.choice === "coming" || data.choice === "available";
     await sql`insert into availability (event_id, couple_id, available, choice)
-      values (${data.eventId}, 'c1', ${available}, ${data.choice})
+      values (${data.eventId}, ${coupleId}, ${available}, ${data.choice})
       on conflict (event_id, couple_id) do update set available = ${available}, choice = ${data.choice}`;
     return { ok: true };
   });

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { memberHome } from "@/lib/club-api";
+import { deskEvents } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/events")({
   head: () => ({ meta: [{ title: "Events · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),
-  loader: () => memberHome(),
+  loader: () => deskEvents(),
   component: Events,
 });
 

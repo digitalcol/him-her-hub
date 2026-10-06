@@ -54,7 +54,7 @@ function CircleDetail() {
         </div>
       </dl>
       <p className="mt-4 text-sm text-muted">
-        {circle.members.length} / {circle.capacity} allotted · kitty remaining ₹{circle.kitty.toLocaleString("en-IN")}
+        {circle.members.length} / {circle.capacity} allotted
       </p>
       <form
         className="mt-6 max-w-xl"
@@ -149,7 +149,7 @@ function CircleDetail() {
             </li>
           ))}
         </ul>
-        <p className="mt-4 text-sm text-muted">Kitty remaining ₹{circle.kitty.toLocaleString("en-IN")}</p>
+        <p className="mt-4 text-sm text-fg">Balance ₹{circle.kitty.toLocaleString("en-IN")}</p>
         <ul className="mt-3 divide-y divide-line border-y border-line">
           {circle.bills.length === 0 ? <li className="py-3 text-sm text-muted">No bills yet.</li> : null}
           {circle.bills.map((bill) => (

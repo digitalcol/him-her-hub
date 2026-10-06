@@ -1,6 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { WORDMARK } from "@/lib/club";
+import { lockMember } from "@/lib/member-session";
+import { lockOperations } from "@/lib/operations-lock";
 
 const PUBLIC_LINKS = [
   { to: "/moments", label: "Moments" },
@@ -23,7 +25,11 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const zone = path.startsWith("/admin") ? "admin" : path.startsWith("/members") ? "members" : "public";
   const links = zone === "admin" ? ADMIN_LINKS : zone === "members" ? MEMBER_LINKS : PUBLIC_LINKS;
-  const side = zone === "public" ? { to: "/members/circle" as const, label: "Members" } : { to: "/" as const, label: "Public" };
+
+  async function leave(lock: () => Promise<unknown>) {
+    await lock();
+    window.location.assign("/");
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -53,13 +59,19 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <Link
-            to={side.to}
-            className="hidden h-11 items-center px-2 text-sm text-fg lg:inline-flex"
-            aria-current={path === side.to ? "page" : undefined}
-          >
-            {side.label}
-          </Link>
+          {zone === "admin" ? (
+            <button type="button" className="inline-flex h-11 items-center px-2 text-sm text-fg" onClick={() => void leave(lockOperations)}>
+              Log out
+            </button>
+          ) : zone === "members" ? (
+            <button type="button" className="hidden h-11 items-center px-2 text-sm text-fg lg:inline-flex" onClick={() => void leave(lockMember)}>
+              Log out
+            </button>
+          ) : (
+            <Link to="/members/circle" className="hidden h-11 items-center px-2 text-sm text-fg lg:inline-flex">
+              Members
+            </Link>
+          )}
           <button
             type="button"
             className="inline-flex h-11 items-center px-2 text-sm tracking-index text-fg uppercase lg:hidden"
@@ -85,14 +97,19 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
-          <Link
-            to={side.to}
-            className="block py-3 text-2xl font-medium tracking-tight text-fg"
-            aria-current={path === side.to ? "page" : undefined}
-            onClick={() => setOpen(false)}
-          >
-            {side.label}
-          </Link>
+          {zone === "admin" ? (
+            <button type="button" className="block py-3 text-left text-2xl font-medium tracking-tight text-fg" onClick={() => void leave(lockOperations)}>
+              Log out
+            </button>
+          ) : zone === "members" ? (
+            <button type="button" className="block py-3 text-left text-2xl font-medium tracking-tight text-fg" onClick={() => void leave(lockMember)}>
+              Log out
+            </button>
+          ) : (
+            <Link to="/members/circle" className="block py-3 text-2xl font-medium tracking-tight text-fg" onClick={() => setOpen(false)}>
+              Members
+            </Link>
+          )}
         </nav>
       ) : null}
     </header>

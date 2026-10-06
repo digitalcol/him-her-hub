@@ -16,6 +16,16 @@ const QUESTIONS = [
   "What is the charge of a down quark, written as a positive integer over 3?",
 ];
 
+function cookieOptions() {
+  const request = getRequest();
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    secure: request.url.startsWith("https:"),
+  };
+}
+
 export function operationsUnlocked() {
   return getCookie(COOKIE) === TOKEN;
 }
@@ -26,14 +36,10 @@ export function drawQuestion() {
 
 export function acceptAnswer(answer: string) {
   if (answer.trim() !== "1985") return false;
-  const request = getRequest();
-  const secure = request.url.startsWith("https:");
-  setCookie(COOKIE, TOKEN, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    secure,
-    maxAge: 60 * 60 * 12,
-  });
+  setCookie(COOKIE, TOKEN, { ...cookieOptions(), maxAge: 60 * 60 * 12 });
   return true;
+}
+
+export function closeOperations() {
+  setCookie(COOKIE, "", { ...cookieOptions(), maxAge: 0 });
 }

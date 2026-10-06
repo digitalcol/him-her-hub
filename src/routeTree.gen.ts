@@ -15,6 +15,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as CircleRouteImport } from './routes/circle'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as MembersRouteImport } from './routes/members'
 import { Route as MomentsRouteImport } from './routes/moments'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -65,6 +66,11 @@ const CircleRoute = CircleRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MembersRoute = MembersRouteImport.update({
+  id: '/members',
+  path: '/members',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MomentsRoute = MomentsRouteImport.update({
@@ -123,29 +129,29 @@ const AdminNoticesRoute = AdminNoticesRouteImport.update({
   getParentRoute: () => AdminRoute,
 } as any)
 const MembersIndexRoute = MembersIndexRouteImport.update({
-  id: '/members/',
-  path: '/members/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => MembersRoute,
 } as any)
 const MembersCalendarRoute = MembersCalendarRouteImport.update({
-  id: '/members/calendar',
-  path: '/members/calendar',
-  getParentRoute: () => rootRouteImport,
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => MembersRoute,
 } as any)
 const MembersCircleRoute = MembersCircleRouteImport.update({
-  id: '/members/circle',
-  path: '/members/circle',
-  getParentRoute: () => rootRouteImport,
+  id: '/circle',
+  path: '/circle',
+  getParentRoute: () => MembersRoute,
 } as any)
 const MembersKittyRoute = MembersKittyRouteImport.update({
-  id: '/members/kitty',
-  path: '/members/kitty',
-  getParentRoute: () => rootRouteImport,
+  id: '/kitty',
+  path: '/kitty',
+  getParentRoute: () => MembersRoute,
 } as any)
 const MembersPeopleRoute = MembersPeopleRouteImport.update({
-  id: '/members/people',
-  path: '/members/people',
-  getParentRoute: () => rootRouteImport,
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => MembersRoute,
 } as any)
 const AdminApplicationsIndexRoute = AdminApplicationsIndexRouteImport.update({
   id: '/',
@@ -180,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/apply': typeof ApplyRoute
   '/circle': typeof CircleRoute
   '/login': typeof LoginRoute
+  '/members': typeof MembersRouteWithChildren
   '/moments': typeof MomentsRoute
   '/operations': typeof OperationsRoute
   '/privacy': typeof PrivacyRoute
@@ -236,6 +243,7 @@ export interface FileRoutesById {
   '/apply': typeof ApplyRoute
   '/circle': typeof CircleRoute
   '/login': typeof LoginRoute
+  '/members': typeof MembersRouteWithChildren
   '/moments': typeof MomentsRoute
   '/operations': typeof OperationsRoute
   '/privacy': typeof PrivacyRoute
@@ -267,6 +275,7 @@ export interface FileRouteTypes {
     | '/apply'
     | '/circle'
     | '/login'
+    | '/members'
     | '/moments'
     | '/operations'
     | '/privacy'
@@ -322,6 +331,7 @@ export interface FileRouteTypes {
     | '/apply'
     | '/circle'
     | '/login'
+    | '/members'
     | '/moments'
     | '/operations'
     | '/privacy'
@@ -352,15 +362,11 @@ export interface RootRouteChildren {
   ApplyRoute: typeof ApplyRoute
   CircleRoute: typeof CircleRoute
   LoginRoute: typeof LoginRoute
+  MembersRoute: typeof MembersRouteWithChildren
   MomentsRoute: typeof MomentsRoute
   OperationsRoute: typeof OperationsRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
-  MembersCalendarRoute: typeof MembersCalendarRoute
-  MembersCircleRoute: typeof MembersCircleRoute
-  MembersKittyRoute: typeof MembersKittyRoute
-  MembersPeopleRoute: typeof MembersPeopleRoute
-  MembersIndexRoute: typeof MembersIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -405,6 +411,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/members': {
+      id: '/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof MembersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/moments': {
@@ -486,38 +499,38 @@ declare module '@tanstack/react-router' {
     }
     '/members/': {
       id: '/members/'
-      path: '/members'
+      path: '/'
       fullPath: '/members/'
       preLoaderRoute: typeof MembersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof MembersRoute
     }
     '/members/calendar': {
       id: '/members/calendar'
-      path: '/members/calendar'
+      path: '/calendar'
       fullPath: '/members/calendar'
       preLoaderRoute: typeof MembersCalendarRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof MembersRoute
     }
     '/members/circle': {
       id: '/members/circle'
-      path: '/members/circle'
+      path: '/circle'
       fullPath: '/members/circle'
       preLoaderRoute: typeof MembersCircleRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof MembersRoute
     }
     '/members/kitty': {
       id: '/members/kitty'
-      path: '/members/kitty'
+      path: '/kitty'
       fullPath: '/members/kitty'
       preLoaderRoute: typeof MembersKittyRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof MembersRoute
     }
     '/members/people': {
       id: '/members/people'
-      path: '/members/people'
+      path: '/people'
       fullPath: '/members/people'
       preLoaderRoute: typeof MembersPeopleRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof MembersRoute
     }
     '/admin/applications/': {
       id: '/admin/applications/'
@@ -608,6 +621,25 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface MembersRouteChildren {
+  MembersCalendarRoute: typeof MembersCalendarRoute
+  MembersCircleRoute: typeof MembersCircleRoute
+  MembersKittyRoute: typeof MembersKittyRoute
+  MembersPeopleRoute: typeof MembersPeopleRoute
+  MembersIndexRoute: typeof MembersIndexRoute
+}
+
+const MembersRouteChildren: MembersRouteChildren = {
+  MembersCalendarRoute: MembersCalendarRoute,
+  MembersCircleRoute: MembersCircleRoute,
+  MembersKittyRoute: MembersKittyRoute,
+  MembersPeopleRoute: MembersPeopleRoute,
+  MembersIndexRoute: MembersIndexRoute,
+}
+
+const MembersRouteWithChildren =
+  MembersRoute._addFileChildren(MembersRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -615,15 +647,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApplyRoute: ApplyRoute,
   CircleRoute: CircleRoute,
   LoginRoute: LoginRoute,
+  MembersRoute: MembersRouteWithChildren,
   MomentsRoute: MomentsRoute,
   OperationsRoute: OperationsRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
-  MembersCalendarRoute: MembersCalendarRoute,
-  MembersCircleRoute: MembersCircleRoute,
-  MembersKittyRoute: MembersKittyRoute,
-  MembersPeopleRoute: MembersPeopleRoute,
-  MembersIndexRoute: MembersIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
