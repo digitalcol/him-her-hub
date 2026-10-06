@@ -5,14 +5,15 @@ const REPLIES = ["coming", "available", "not-available", "not-coming"] as const;
 async function db() {
   const { getSql } = await import("@/lib/db");
   const { actorForRequest, canMutateOperations } = await import("@/lib/club-access");
-  return { sql: await getSql(), actor: actorForRequest(), canMutateOperations };
+  const { operationsUnlocked } = await import("@/lib/operations-lock.server");
+  return { sql: await getSql(), actor: actorForRequest(), canMutateOperations, operationsUnlocked };
 }
 
 export const sendNotice = createServerFn({ method: "POST" })
   .validator((data: { circleId: string; title: string; body: string }) => data)
   .handler(async ({ data }) => {
-    const { sql, actor, canMutateOperations } = await db();
-    if (!canMutateOperations(actor)) throw new Error("Not allowed.");
+    const { sql, actor, canMutateOperations, operationsUnlocked } = await db();
+    if (!operationsUnlocked() || !canMutateOperations(actor)) throw new Error("Operations is locked.");
     const title = data.title.trim();
     const body = data.body.trim();
     if (!title || !body) throw new Error("A notice needs a title and a message.");
@@ -26,8 +27,8 @@ export const sendNotice = createServerFn({ method: "POST" })
   });
 
 export const listNotices = createServerFn({ method: "GET" }).handler(async () => {
-  const { sql, actor, canMutateOperations } = await db();
-  if (!canMutateOperations(actor)) throw new Error("Not allowed.");
+  const { sql, operationsUnlocked, actor, canMutateOperations } = await db();
+  if (!operationsUnlocked() || !canMutateOperations(actor)) throw new Error("Operations is locked.");
   return sql<{ id: string; title: string; body: string; circle_id: string | null; circle_name: string | null }>`
     select n.id, n.title, n.body, n.circle_id, c.name as circle_name
     from notices n

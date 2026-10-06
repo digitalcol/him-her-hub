@@ -144,6 +144,12 @@ async function ready() {
   return sql;
 }
 
+async function readyOps() {
+  const { operationsUnlocked } = await import("@/lib/operations-lock.server");
+  if (!operationsUnlocked()) throw new Error("Operations is locked.");
+  return ready();
+}
+
 type CoupleRow = {
   id: string;
   name: string;
@@ -329,7 +335,7 @@ async function couples(sql: Sql): Promise<CoupleRow[]> {
 }
 
 export const clubOverview = createServerFn({ method: "GET" }).handler(async () => {
-  const sql = await ready();
+  const sql = await readyOps();
   const rows = await couples(sql);
   const circleRows = await sql<{ id: string; name: string; status: string; capacity: number; taken: number }>`
     select c.id, c.name, c.status, c.capacity, count(m.couple_id) as taken
@@ -345,7 +351,7 @@ export const clubOverview = createServerFn({ method: "GET" }).handler(async () =
 });
 
 export const listApplications = createServerFn({ method: "GET" }).handler(async () => {
-  const sql = await ready();
+  const sql = await readyOps();
   const rows = await couples(sql);
   const people = await sql<{ couple_id: string; first_name: string; last_name: string; email: string | null; profession: string | null }>`
     select couple_id, first_name, last_name, email, profession from people order by id
@@ -369,7 +375,7 @@ export const listApplications = createServerFn({ method: "GET" }).handler(async 
 export const getApplication = createServerFn({ method: "GET" })
   .validator((data: { id: string }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     const rows = await sql<CoupleRow>`
       select c.id, c.name, c.area, c.about, c.interests, c.referral, c.status,
         exists(select 1 from circle_memberships m where m.couple_id = c.id and m.status = 'ACTIVE') as assigned,
@@ -421,7 +427,7 @@ export const getApplication = createServerFn({ method: "GET" })
 export const setApplicationStatus = createServerFn({ method: "POST" })
   .validator((data: { id: string; status: AppStatus }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     const rows = await sql<{ status: AppStatus }>`select status from couples where id = ${data.id}`;
     const current = rows[0]?.status;
     if (!current || !canTransition(current, data.status)) {
@@ -577,7 +583,7 @@ export const completeRoster = createServerFn({ method: "POST" })
   });
 
 export const listCircles = createServerFn({ method: "GET" }).handler(async () => {
-  const sql = await ready();
+  const sql = await readyOps();
   const circles = await sql<{ id: string; name: string; city: string; status: string; capacity: number; kitty_amount: number; joining_fee: number; renewal_fee: number; taken: number }>`
     select c.id, c.name, c.city, c.status, c.capacity, c.kitty_amount, c.joining_fee, c.renewal_fee,
       count(m.couple_id) filter (where m.status = 'ACTIVE') as taken
@@ -667,12 +673,12 @@ async function loadCircle(sql: Sql, id: string) {
 
 export const getCircle = createServerFn({ method: "GET" })
   .validator((data: { id: string }) => data)
-  .handler(async ({ data }) => loadCircle(await ready(), data.id));
+  .handler(async ({ data }) => loadCircle(await readyOps(), data.id));
 
 export const assignCouple = createServerFn({ method: "POST" })
   .validator((data: { circleId: string; coupleId: string }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     const circle = await loadCircle(sql, data.circleId);
     const couple = (await couples(sql)).find((row) => row.id === data.coupleId);
     if (!couple || !canAssign(couple.status, couple.assigned, Number(circle.capacity), circle.members.length)) {
@@ -687,7 +693,7 @@ export const assignCouple = createServerFn({ method: "POST" })
 export const markKittyPaid = createServerFn({ method: "POST" })
   .validator((data: { circleId: string; coupleId: string }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     const circles = await sql<{ kitty_amount: number }>`select kitty_amount from circles where id = ${data.circleId}`;
     const amount = circles[0]?.kitty_amount;
     if (!amount) throw new Error("Circle not found.");
@@ -714,7 +720,7 @@ export const markKittyPaid = createServerFn({ method: "POST" })
 export const addExpense = createServerFn({ method: "POST" })
   .validator((data: { circleId: string; amount: number; note: string; bill: string }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
     if (!Number.isFinite(data.amount) || data.amount <= 0) throw new Error("Amount must be a positive number.");
     const expenseId = crypto.randomUUID();
@@ -739,7 +745,7 @@ export const addExpense = createServerFn({ method: "POST" })
 export const addAdminNote = createServerFn({ method: "POST" })
   .validator((data: { coupleId: string; body: string }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
     const body = data.body.trim();
     if (!body) throw new Error("The note is empty.");
@@ -750,7 +756,7 @@ export const addAdminNote = createServerFn({ method: "POST" })
 export const setWhatsApp = createServerFn({ method: "POST" })
   .validator((data: { circleId: string; url: string }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
     const url = data.url.trim();
     if (url && !url.startsWith("https://chat.whatsapp.com/") && !url.startsWith("https://wa.me/")) {
@@ -763,7 +769,7 @@ export const setWhatsApp = createServerFn({ method: "POST" })
 export const createCircle = createServerFn({ method: "POST" })
   .validator((data: { name: string; rules: string; kittyAmount: number; joiningFee: number; renewalFee: number }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
     const name = data.name.trim();
     if (!isCircleName(name)) throw new Error("Choose a name from the star list.");
@@ -785,7 +791,7 @@ export const createCircle = createServerFn({ method: "POST" })
   });
 
 export const circleNameChoices = createServerFn({ method: "GET" }).handler(async () => {
-  const sql = await ready();
+  const sql = await readyOps();
   const used = await sql<{ name: string }>`select name from circles`;
   const taken = new Set(used.map((row) => row.name.toLowerCase()));
   return CIRCLE_NAMES.filter((name) => !taken.has(name.toLowerCase()));
@@ -794,7 +800,7 @@ export const circleNameChoices = createServerFn({ method: "GET" }).handler(async
 export const moveCouple = createServerFn({ method: "POST" })
   .validator((data: { coupleId: string; toCircleId: string }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
     await sql.query("begin");
     try {
@@ -826,7 +832,7 @@ export const moveCouple = createServerFn({ method: "POST" })
 export const removeCouple = createServerFn({ method: "POST" })
   .validator((data: { circleId: string; coupleId: string }) => data)
   .handler(async ({ data }) => {
-    const sql = await ready();
+    const sql = await readyOps();
     if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
     const current = await sql<{ id: string }>`
       select id from circle_memberships

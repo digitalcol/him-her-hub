@@ -11,10 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as CircleRouteImport } from './routes/circle'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MomentsRouteImport } from './routes/moments'
+import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -45,6 +47,11 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApplyRoute = ApplyRouteImport.update({
   id: '/apply',
   path: '/apply',
@@ -65,6 +72,11 @@ const MomentsRoute = MomentsRouteImport.update({
   path: '/moments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OperationsRoute = OperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -76,39 +88,39 @@ const TermsRoute = TermsRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminApplicationsRoute = AdminApplicationsRouteImport.update({
-  id: '/admin/applications',
-  path: '/admin/applications',
-  getParentRoute: () => rootRouteImport,
+  id: '/applications',
+  path: '/applications',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminCirclesRoute = AdminCirclesRouteImport.update({
-  id: '/admin/circles',
-  path: '/admin/circles',
-  getParentRoute: () => rootRouteImport,
+  id: '/circles',
+  path: '/circles',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminEventsRoute = AdminEventsRouteImport.update({
-  id: '/admin/events',
-  path: '/admin/events',
-  getParentRoute: () => rootRouteImport,
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminKittyRoute = AdminKittyRouteImport.update({
-  id: '/admin/kitty',
-  path: '/admin/kitty',
-  getParentRoute: () => rootRouteImport,
+  id: '/kitty',
+  path: '/kitty',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminMembersRoute = AdminMembersRouteImport.update({
-  id: '/admin/members',
-  path: '/admin/members',
-  getParentRoute: () => rootRouteImport,
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminNoticesRoute = AdminNoticesRouteImport.update({
-  id: '/admin/notices',
-  path: '/admin/notices',
-  getParentRoute: () => rootRouteImport,
+  id: '/notices',
+  path: '/notices',
+  getParentRoute: () => AdminRoute,
 } as any)
 const MembersIndexRoute = MembersIndexRouteImport.update({
   id: '/members/',
@@ -164,10 +176,12 @@ const AdminCirclesNewRoute = AdminCirclesNewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/apply': typeof ApplyRoute
   '/circle': typeof CircleRoute
   '/login': typeof LoginRoute
   '/moments': typeof MomentsRoute
+  '/operations': typeof OperationsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/admin/applications': typeof AdminApplicationsRouteWithChildren
@@ -195,6 +209,7 @@ export interface FileRoutesByTo {
   '/circle': typeof CircleRoute
   '/login': typeof LoginRoute
   '/moments': typeof MomentsRoute
+  '/operations': typeof OperationsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/admin/events': typeof AdminEventsRoute
@@ -217,10 +232,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRouteWithChildren
   '/apply': typeof ApplyRoute
   '/circle': typeof CircleRoute
   '/login': typeof LoginRoute
   '/moments': typeof MomentsRoute
+  '/operations': typeof OperationsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/admin/applications': typeof AdminApplicationsRouteWithChildren
@@ -246,10 +263,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/admin'
     | '/apply'
     | '/circle'
     | '/login'
     | '/moments'
+    | '/operations'
     | '/privacy'
     | '/terms'
     | '/admin/applications'
@@ -277,6 +296,7 @@ export interface FileRouteTypes {
     | '/circle'
     | '/login'
     | '/moments'
+    | '/operations'
     | '/privacy'
     | '/terms'
     | '/admin/events'
@@ -298,10 +318,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/admin'
     | '/apply'
     | '/circle'
     | '/login'
     | '/moments'
+    | '/operations'
     | '/privacy'
     | '/terms'
     | '/admin/applications'
@@ -326,23 +348,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRouteWithChildren
   ApplyRoute: typeof ApplyRoute
   CircleRoute: typeof CircleRoute
   LoginRoute: typeof LoginRoute
   MomentsRoute: typeof MomentsRoute
+  OperationsRoute: typeof OperationsRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
-  AdminApplicationsRoute: typeof AdminApplicationsRouteWithChildren
-  AdminCirclesRoute: typeof AdminCirclesRouteWithChildren
-  AdminEventsRoute: typeof AdminEventsRoute
-  AdminKittyRoute: typeof AdminKittyRoute
-  AdminMembersRoute: typeof AdminMembersRoute
-  AdminNoticesRoute: typeof AdminNoticesRoute
   MembersCalendarRoute: typeof MembersCalendarRoute
   MembersCircleRoute: typeof MembersCircleRoute
   MembersKittyRoute: typeof MembersKittyRoute
   MembersPeopleRoute: typeof MembersPeopleRoute
-  AdminIndexRoute: typeof AdminIndexRoute
   MembersIndexRoute: typeof MembersIndexRoute
 }
 
@@ -360,6 +377,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/apply': {
@@ -390,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MomentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/operations': {
+      id: '/operations'
+      path: '/operations'
+      fullPath: '/operations'
+      preLoaderRoute: typeof OperationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -406,52 +437,52 @@ declare module '@tanstack/react-router' {
     }
     '/admin/': {
       id: '/admin/'
-      path: '/admin'
+      path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/applications': {
       id: '/admin/applications'
-      path: '/admin/applications'
+      path: '/applications'
       fullPath: '/admin/applications'
       preLoaderRoute: typeof AdminApplicationsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/circles': {
       id: '/admin/circles'
-      path: '/admin/circles'
+      path: '/circles'
       fullPath: '/admin/circles'
       preLoaderRoute: typeof AdminCirclesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/events': {
       id: '/admin/events'
-      path: '/admin/events'
+      path: '/events'
       fullPath: '/admin/events'
       preLoaderRoute: typeof AdminEventsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/kitty': {
       id: '/admin/kitty'
-      path: '/admin/kitty'
+      path: '/kitty'
       fullPath: '/admin/kitty'
       preLoaderRoute: typeof AdminKittyRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/members': {
       id: '/admin/members'
-      path: '/admin/members'
+      path: '/members'
       fullPath: '/admin/members'
       preLoaderRoute: typeof AdminMembersRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/notices': {
       id: '/admin/notices'
-      path: '/admin/notices'
+      path: '/notices'
       fullPath: '/admin/notices'
       preLoaderRoute: typeof AdminNoticesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/members/': {
       id: '/members/'
@@ -555,26 +586,43 @@ const AdminCirclesRouteWithChildren = AdminCirclesRoute._addFileChildren(
   AdminCirclesRouteChildren,
 )
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
-  ApplyRoute: ApplyRoute,
-  CircleRoute: CircleRoute,
-  LoginRoute: LoginRoute,
-  MomentsRoute: MomentsRoute,
-  PrivacyRoute: PrivacyRoute,
-  TermsRoute: TermsRoute,
+interface AdminRouteChildren {
+  AdminApplicationsRoute: typeof AdminApplicationsRouteWithChildren
+  AdminCirclesRoute: typeof AdminCirclesRouteWithChildren
+  AdminEventsRoute: typeof AdminEventsRoute
+  AdminKittyRoute: typeof AdminKittyRoute
+  AdminMembersRoute: typeof AdminMembersRoute
+  AdminNoticesRoute: typeof AdminNoticesRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
   AdminApplicationsRoute: AdminApplicationsRouteWithChildren,
   AdminCirclesRoute: AdminCirclesRouteWithChildren,
   AdminEventsRoute: AdminEventsRoute,
   AdminKittyRoute: AdminKittyRoute,
   AdminMembersRoute: AdminMembersRoute,
   AdminNoticesRoute: AdminNoticesRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  AdminRoute: AdminRouteWithChildren,
+  ApplyRoute: ApplyRoute,
+  CircleRoute: CircleRoute,
+  LoginRoute: LoginRoute,
+  MomentsRoute: MomentsRoute,
+  OperationsRoute: OperationsRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
   MembersCalendarRoute: MembersCalendarRoute,
   MembersCircleRoute: MembersCircleRoute,
   MembersKittyRoute: MembersKittyRoute,
   MembersPeopleRoute: MembersPeopleRoute,
-  AdminIndexRoute: AdminIndexRoute,
   MembersIndexRoute: MembersIndexRoute,
 }
 export const routeTree = rootRouteImport
