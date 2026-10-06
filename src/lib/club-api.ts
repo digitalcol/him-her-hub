@@ -274,6 +274,29 @@ async function photoUrl(asset: { mime?: string; storage_key: string; body?: stri
   }
 }
 
+
+export async function loadPortraitBytes(coupleId: string, role: string) {
+  if (role !== "one" && role !== "two" && role !== "together") return null;
+  const sql = await ready();
+  const rows = await sql<{ mime: string | null; body: string | null; storage_key: string }>`
+    select mime, body, storage_key from application_assets
+    where couple_id = ${coupleId} and role = ${role}
+    limit 1
+  `;
+  const asset = rows[0];
+  if (!asset) return null;
+  if (asset.body) {
+    return { mime: asset.mime || "image/jpeg", bytes: Buffer.from(asset.body, "base64") };
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(asset.storage_key)) return null;
+  try {
+    const bytes = await readFile(`${runtimeDataDir("private")}/${asset.storage_key}`);
+    return { mime: asset.mime || "image/jpeg", bytes };
+  } catch {
+    return null;
+  }
+}
+
 async function couples(sql: Sql): Promise<CoupleRow[]> {
   return sql<CoupleRow>`
     select c.id, c.name, c.area, c.about, c.interests, c.referral, c.status,
@@ -646,7 +669,7 @@ async function loadCircle(sql: Sql, id: string) {
     const partners = people.filter((person) => person.couple_id === member.id).slice(0, 2);
     for (const asset of assets.filter((item) => item.couple_id === member.id)) {
       if (asset.role !== "one" && asset.role !== "two" && asset.role !== "together") continue;
-      portraits[asset.role] = "";
+      portraits[asset.role] = `/portraits/${member.id}/${asset.role}`;
     }
     const titled =
       partners.length === 2 && partners.some((person) => person.last_name)
@@ -694,7 +717,7 @@ async function loadCircle(sql: Sql, id: string) {
       note: row.note,
       amount: Number(row.amount),
       balance: running,
-      bill: "",
+      bill: row.bill_key ? await photoUrl({ storage_key: row.bill_key, mime: row.bill_mime ?? undefined }) : "",
     });
   }
   return { ...circle, members: dressed, waiting, others, kitty: running, opening, each, bills, ledger };
@@ -967,7 +990,10 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     const assets = await sql<{ role: string; mime: string; storage_key: string; body: string | null }>`
       select role, mime, storage_key, body from application_assets where couple_id = ${coupleId}
     `;
-    const photos: { role: string; src: string }[] = assets.map((asset) => ({ role: asset.role, src: "" }));
+    const photos: { role: string; src: string }[] = [];
+    for (const asset of assets) {
+      photos.push({ role: asset.role, src: `/portraits/${coupleId}/${asset.role}` });
+    }
     const row = profileRows[0];
     if (row) {
       const payment = yours[0]?.status === "PAID" ? "Paid" : yours[0]?.status === "SENT" ? "Sent" : "Due";
