@@ -1,10 +1,6 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { memberOpen } from "@/lib/member-session";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/members")({
-  beforeLoad: async () => {
-    if (await memberOpen()) return;
-    throw redirect({ to: "/login" });
-  },
   component: () => <Outlet />,
 });
+

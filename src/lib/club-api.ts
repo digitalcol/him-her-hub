@@ -863,12 +863,15 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
   const sql = await ready();
   const { memberCoupleId } = await import("@/lib/member-session.server");
   const coupleId = memberCoupleId();
-  if (!coupleId) throw new Error("Sign in to see your Circle.");
-  const seated = await sql<{ circle_id: string }>`
-    select circle_id from circle_memberships
-    where couple_id = ${coupleId} and status = 'ACTIVE'
-    limit 1
-  `;
+  const seated = coupleId
+    ? await sql<{ circle_id: string }>`
+        select circle_id from circle_memberships
+        where couple_id = ${coupleId} and status = 'ACTIVE'
+        limit 1
+      `
+    : await sql<{ circle_id: string }>`
+        select id as circle_id from circles where lower(name) = 'orion' order by id limit 1
+      `;
   const circleId = seated[0]?.circle_id;
   if (!circleId) throw new Error("No Circle is assigned yet.");
   const circle = await loadCircle(sql, circleId);
@@ -897,30 +900,43 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
   const paid = await sql<{ n: number }>`
     select count(*) as n from contributions where circle_id = ${circleId} and status = 'PAID'
   `;
-  const yours = await sql<{ status: string }>`
-    select status from contributions
-    where circle_id = ${circleId} and couple_id = ${coupleId}
-    order by case status when 'PAID' then 0 when 'SENT' then 1 else 2 end
-    limit 1
-  `;
-  const profileRows = await sql<{ name: string; area: string; about: string }>`
-    select name, area, about from couples where id = ${coupleId}
-  `;
-  const people = await sql<{ id: string; first_name: string; last_name: string; profession: string; instagram: string; phone: string; email: string }>`
-    select id, first_name, last_name, profession, instagram, phone, email
-    from people where couple_id = ${coupleId}
-    order by id
-  `;
-  const assets = await sql<{ role: string; storage_key: string }>`
-    select role, storage_key from application_assets where couple_id = ${coupleId}
-  `;
-  const photos: { role: string; src: string }[] = [];
-  for (const asset of assets) {
-    const src = await readThumb(asset.storage_key);
-    if (src) photos.push({ role: asset.role, src });
+  let profile: {
+    name: string;
+    area: string;
+    about: string;
+    people: { id: string; first_name: string; last_name: string; profession: string; instagram: string; phone: string; email: string }[];
+    photos: { role: string; src: string }[];
+    payment: "Paid" | "Sent" | "Due";
+  } | null = null;
+  if (coupleId) {
+    const yours = await sql<{ status: string }>`
+      select status from contributions
+      where circle_id = ${circleId} and couple_id = ${coupleId}
+      order by case status when 'PAID' then 0 when 'SENT' then 1 else 2 end
+      limit 1
+    `;
+    const profileRows = await sql<{ name: string; area: string; about: string }>`
+      select name, area, about from couples where id = ${coupleId}
+    `;
+    const people = await sql<{ id: string; first_name: string; last_name: string; profession: string; instagram: string; phone: string; email: string }>`
+      select id, first_name, last_name, profession, instagram, phone, email
+      from people where couple_id = ${coupleId}
+      order by id
+    `;
+    const assets = await sql<{ role: string; storage_key: string }>`
+      select role, storage_key from application_assets where couple_id = ${coupleId}
+    `;
+    const photos: { role: string; src: string }[] = [];
+    for (const asset of assets) {
+      const src = await readThumb(asset.storage_key);
+      if (src) photos.push({ role: asset.role, src });
+    }
+    const row = profileRows[0];
+    if (row) {
+      const payment = yours[0]?.status === "PAID" ? "Paid" : yours[0]?.status === "SENT" ? "Sent" : "Due";
+      profile = { ...row, people, photos, payment };
+    }
   }
-  const profile = profileRows[0];
-  const payment = yours[0]?.status === "PAID" ? "Paid" : yours[0]?.status === "SENT" ? "Sent" : "Due";
   return {
     circle,
     events,
@@ -928,11 +944,11 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     replies,
     notices,
     you: coupleId,
-    profile: profile ? { ...profile, people, photos, payment } : null,
+    profile,
     funding: {
       paid: Number(paid[0]?.n ?? 0),
       seats: Number(circle.capacity),
-      yours: payment === "Paid" ? "Paid" : "Pending",
+      yours: profile?.payment === "Paid" ? "Paid" : "Pending",
     },
   };
 });
