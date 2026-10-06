@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { completeRoster, getRosterSlot, submitApplication } from "@/lib/club-api";
+import { addRosterPhotos, completeRoster, getRosterSlot, submitApplication } from "@/lib/club-api";
 
 export const Route = createFileRoute("/apply")({
   validateSearch: (search: Record<string, unknown>): { for: string } => ({
@@ -76,7 +76,9 @@ function Apply() {
               <img key={photo.role} src={photo.src} alt="" className="size-24 rounded-full object-cover" />
             ))}
           </div>
-        ) : null}
+        ) : (
+          <PhotoReplace coupleId={slot.id} />
+        )}
         <ul className="mt-10 divide-y divide-line border-y border-line">
           {people.map((person) => (
             <li key={person.email || person.first_name} className="py-4 text-sm">
@@ -155,6 +157,43 @@ function Apply() {
         </button>
       </form>
     </main>
+  );
+}
+
+function PhotoReplace({ coupleId }: { coupleId: string }) {
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    const form = new FormData(event.currentTarget);
+    try {
+      await addRosterPhotos({
+        data: {
+          coupleId,
+          photos: {
+            one: await readPhoto(form.get("one-photo")),
+            two: await readPhoto(form.get("two-photo")),
+            together: await readPhoto(form.get("together-photo")),
+          },
+        },
+      });
+      window.location.reload();
+    } catch (caught) {
+      setError(messageFrom(caught));
+    }
+  }
+
+  return (
+    <form className="mt-8 space-y-6" onSubmit={onSubmit}>
+      <PhotoPick label="Photograph" name="one-photo" />
+      <PhotoPick label="Photograph" name="two-photo" />
+      <PhotoPick label="A photograph of the two of you" name="together-photo" />
+      {error ? <p className="text-sm text-soft">{error}</p> : null}
+      <button type="submit" className="h-11 bg-fg px-5 text-sm font-medium text-bg">
+        Save the photographs
+      </button>
+    </form>
   );
 }
 

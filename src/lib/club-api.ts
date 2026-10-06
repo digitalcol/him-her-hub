@@ -1,7 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { execFile } from "node:child_process";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
-import { promisify } from "node:util";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { z } from "zod";
 import { actorForRequest, canMutateOperations, canReadCircle, isPreviewMode } from "@/lib/club-access";
 import { CIRCLE_NAMES, isCircleName } from "@/lib/circle-names";
@@ -114,6 +112,7 @@ async function seed(sql: Sql) {
 async function ready() {
   assertActor();
   const sql = await getSql();
+  await sql`alter table application_assets add column if not exists body text`;
   await seed(sql);
   await removeRamSita(sql);
   await ensureOrionRoster(sql);
@@ -257,46 +256,19 @@ async function savePrivatePhoto(dataUrl: string) {
   const dir = runtimeDataDir("private");
   await mkdir(dir, { recursive: true });
   await writeFile(`${dir}/${key}`, bytes);
-  return { key, mime };
+  return { key, mime, body: match[1].replace(/\s/g, "") };
 }
 
-const execFileAsync = promisify(execFile);
-
-async function readThumb(key: string) {
-  const kept = keptPhoto(key);
+async function photoUrl(asset: { mime?: string; storage_key: string; body?: string | null }, sql?: Sql) {
+  if (asset.body) return `data:${asset.mime || "image/jpeg"};base64,${asset.body}`;
+  const kept = keptPhoto(asset.storage_key);
   if (kept) return kept;
-  if (!/^[0-9a-f-]{36}$/i.test(key)) return "";
-  const dir = runtimeDataDir("private");
-  const src = `${dir}/${key}`;
-  const dest = `${dir}/${key}.thumb.jpg`;
+  if (!/^[0-9a-f-]{36}$/i.test(asset.storage_key)) return "";
   try {
-    await access(dest);
-  } catch {
-    try {
-      await execFileAsync(
-        "ffmpeg",
-        ["-y", "-i", src, "-vf", "scale=240:240:force_original_aspect_ratio=increase,crop=240:240", "-frames:v", "1", "-q:v", "7", dest],
-        { timeout: 20000 },
-      );
-    } catch {
-      return "";
-    }
-  }
-  try {
-    const bytes = await readFile(dest);
-    return `data:image/jpeg;base64,${bytes.toString("base64")}`;
-  } catch {
-    return "";
-  }
-}
-
-async function readPrivatePhoto(key: string, mime: string) {
-  const kept = keptPhoto(key);
-  if (kept) return kept;
-  if (!/^[0-9a-f-]{36}$/i.test(key)) return "";
-  try {
-    const bytes = await readFile(`${runtimeDataDir("private")}/${key}`);
-    return `data:${mime};base64,${bytes.toString("base64")}`;
+    const bytes = await readFile(`${runtimeDataDir("private")}/${asset.storage_key}`);
+    const body = bytes.toString("base64");
+    if (sql) await sql`update application_assets set body = ${body} where storage_key = ${asset.storage_key} and body is null`;
+    return `data:${asset.mime || "image/jpeg"};base64,${body}`;
   } catch {
     return "";
   }
@@ -339,13 +311,13 @@ export const listApplications = createServerFn({ method: "GET" }).handler(async 
   const people = await sql<{ couple_id: string; first_name: string; last_name: string; email: string | null; profession: string | null }>`
     select couple_id, first_name, last_name, email, profession from people order by id
   `;
-  const assets = await sql<{ couple_id: string; role: string; storage_key: string }>`
-    select couple_id, role, storage_key from application_assets
+  const assets = await sql<{ couple_id: string; role: string; mime: string; storage_key: string; body: string | null }>`
+    select couple_id, role, mime, storage_key, body from application_assets
   `;
   const portraits: Record<string, Record<string, string>> = {};
   for (const asset of assets) {
     portraits[asset.couple_id] ??= {};
-    portraits[asset.couple_id][asset.role] = await readThumb(asset.storage_key);
+    portraits[asset.couple_id][asset.role] = await photoUrl(asset, sql);
   }
   return rows.map((row) => ({
     ...row,
@@ -387,12 +359,12 @@ export const getApplication = createServerFn({ method: "GET" })
     const notes = await sql<{ id: string; body: string }>`
       select id, body from admin_notes where couple_id = ${data.id} order by created_at
     `;
-    const assets = await sql<{ id: string; role: string; mime: string; storage_key: string }>`
-      select id, role, mime, storage_key from application_assets where couple_id = ${data.id}
+    const assets = await sql<{ id: string; role: string; mime: string; storage_key: string; body: string | null }>`
+      select id, role, mime, storage_key, body from application_assets where couple_id = ${data.id}
     `;
     const photos: Record<string, string> = {};
     for (const asset of assets) {
-      photos[asset.role] = await readPrivatePhoto(asset.storage_key, asset.mime);
+      photos[asset.role] = await photoUrl(asset, sql);
     }
     const detail = await sql<{ anniversary: string | null; organise: string | null; referral: string | null; photo_consent: boolean }>`
       select anniversary, organise, referral, photo_consent from couples where id = ${data.id}
@@ -456,7 +428,7 @@ export const submitApplication = createServerFn({ method: "POST" })
         window_start = case when rate_limits.window_start < ${windowStart} then now() else rate_limits.window_start end
     `;
     const id = crypto.randomUUID();
-    const name = `${data.one.first} & ${data.two.first}`;
+    const name = `${[data.one.first, data.one.last].filter(Boolean).join(" ")} & ${[data.two.first, data.two.last].filter(Boolean).join(" ")}`;
     const interests = data.interests.join(", ");
     await sql`insert into couples (id, name, area, about, interests, referral, status, photo_consent, anniversary, organise)
       values (${id}, ${name}, ${data.area}, ${data.about}, ${interests}, ${data.referred || null}, 'NEW', ${data.photoConsent}, ${data.anniversary || null}, ${data.organise || null})`;
@@ -473,8 +445,8 @@ export const submitApplication = createServerFn({ method: "POST" })
       ["together", data.photos.together],
     ] as const) {
       const saved = await savePrivatePhoto(value);
-      await sql`insert into application_assets (id, couple_id, role, mime, storage_key)
-        values (${crypto.randomUUID()}, ${id}, ${role}, ${saved.mime}, ${saved.key})`;
+      await sql`insert into application_assets (id, couple_id, role, mime, storage_key, body)
+        values (${crypto.randomUUID()}, ${id}, ${role}, ${saved.mime}, ${saved.key}, ${saved.body})`;
     }
     return { id };
   });
@@ -502,11 +474,11 @@ export const getRosterSlot = createServerFn({ method: "GET" })
     const couple = await sql<{ area: string; about: string }>`select area, about from couples where id = ${data.id}`;
     const photos: { role: string; src: string }[] = [];
     if (row.filled) {
-      const assets = await sql<{ role: string; storage_key: string }>`
-        select role, storage_key from application_assets where couple_id = ${data.id}
+      const assets = await sql<{ role: string; mime: string; storage_key: string; body: string | null }>`
+        select role, mime, storage_key, body from application_assets where couple_id = ${data.id}
       `;
       for (const asset of assets) {
-        const src = await readThumb(asset.storage_key);
+        const src = await photoUrl(asset, sql);
         if (src) photos.push({ role: asset.role, src });
       }
     }
@@ -540,7 +512,7 @@ export const completeRoster = createServerFn({ method: "POST" })
       select count(*) as n from people where couple_id = ${data.coupleId} and email is not null and email <> ''
     `;
     if (Number(filled[0]?.n) > 0) throw new Error("This form has already been received.");
-    const name = `${data.one.first} & ${data.two.first}`;
+    const name = `${[data.one.first, data.one.last].filter(Boolean).join(" ")} & ${[data.two.first, data.two.last].filter(Boolean).join(" ")}`;
     const interests = data.interests.join(", ");
     await sql`update couples
       set name = ${name},
@@ -573,12 +545,35 @@ export const completeRoster = createServerFn({ method: "POST" })
       ["together", data.photos.together],
     ] as const) {
       const saved = await savePrivatePhoto(value);
-      await sql`insert into application_assets (id, couple_id, role, mime, storage_key)
-        values (${crypto.randomUUID()}, ${data.coupleId}, ${role}, ${saved.mime}, ${saved.key})`;
+      await sql`insert into application_assets (id, couple_id, role, mime, storage_key, body)
+        values (${crypto.randomUUID()}, ${data.coupleId}, ${role}, ${saved.mime}, ${saved.key}, ${saved.body})`;
     }
     const { openMember } = await import("@/lib/member-session.server");
     openMember(data.coupleId);
     return { id: data.coupleId };
+  });
+
+export const addRosterPhotos = createServerFn({ method: "POST" })
+  .validator((data: { coupleId: string; photos: { one: string; two: string; together: string } }) => data)
+  .handler(async ({ data }) => {
+    const sql = await ready();
+    const rows = await sql<{ id: string }>`
+      select c.id from couples c
+      join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
+      where c.id = ${data.coupleId}
+    `;
+    if (!rows[0]) throw new Error("That place could not be found.");
+    await sql`delete from application_assets where couple_id = ${data.coupleId}`;
+    for (const [role, value] of [
+      ["one", data.photos.one],
+      ["two", data.photos.two],
+      ["together", data.photos.together],
+    ] as const) {
+      const saved = await savePrivatePhoto(value);
+      await sql`insert into application_assets (id, couple_id, role, mime, storage_key, body)
+        values (${crypto.randomUUID()}, ${data.coupleId}, ${role}, ${saved.mime}, ${saved.key}, ${saved.body})`;
+    }
+    return { ok: true };
   });
 
 export const listCircles = createServerFn({ method: "GET" }).handler(async () => {
@@ -623,8 +618,8 @@ async function loadCircle(sql: Sql, id: string) {
   }>`select id, name, city, status, capacity, kitty_amount, whatsapp_url, joining_fee, renewal_fee, rules from circles where id = ${id}`;
   const circle = circles[0];
   if (!circle) throw new Error("Circle not found.");
-  const members = await sql<{ id: string; name: string; area: string; host_order: number | null; host_label: string | null; paid: boolean; filled: boolean }>`
-    select c.id, c.name, c.area, m.host_order, m.host_label,
+  const members = await sql<{ id: string; name: string; area: string; about: string; host_order: number | null; host_label: string | null; paid: boolean; filled: boolean }>`
+    select c.id, c.name, c.area, c.about, m.host_order, m.host_label,
       exists (
         select 1 from contributions k
         where k.circle_id = m.circle_id and k.couple_id = c.id and k.status = 'PAID'
@@ -638,15 +633,15 @@ async function loadCircle(sql: Sql, id: string) {
     where m.circle_id = ${id} and m.status = 'ACTIVE'
     order by m.host_order nulls last, c.name
   `;
-  const people = await sql<{ couple_id: string; first_name: string }>`
-    select p.couple_id, p.first_name
+  const people = await sql<{ couple_id: string; first_name: string; last_name: string; phone: string | null; email: string | null; profession: string | null; instagram: string | null }>`
+    select p.couple_id, p.first_name, p.last_name, p.phone, p.email, p.profession, p.instagram
     from people p
     join circle_memberships m on m.couple_id = p.couple_id
     where m.circle_id = ${id} and m.status = 'ACTIVE'
     order by p.id
   `;
-  const assets = await sql<{ couple_id: string; role: string; storage_key: string }>`
-    select a.couple_id, a.role, a.storage_key
+  const assets = await sql<{ couple_id: string; role: string; mime: string; storage_key: string; body: string | null }>`
+    select a.couple_id, a.role, a.mime, a.storage_key, a.body
     from application_assets a
     join circle_memberships m on m.couple_id = a.couple_id
     where m.circle_id = ${id} and m.status = 'ACTIVE'
@@ -654,13 +649,19 @@ async function loadCircle(sql: Sql, id: string) {
   const dressed = [];
   for (const member of members) {
     const portraits = { one: "", two: "", together: "" };
+    const partners = people.filter((person) => person.couple_id === member.id).slice(0, 2);
     for (const asset of assets.filter((item) => item.couple_id === member.id)) {
       if (asset.role !== "one" && asset.role !== "two" && asset.role !== "together") continue;
-      portraits[asset.role] = await readThumb(asset.storage_key);
+      portraits[asset.role] = await photoUrl(asset, sql);
     }
+    const titled =
+      partners.length === 2 && partners.some((person) => person.last_name)
+        ? partners.map((person) => [person.first_name, person.last_name].filter(Boolean).join(" ")).join(" & ")
+        : member.name;
     dressed.push({
       ...member,
-      partners: people.filter((person) => person.couple_id === member.id).slice(0, 2),
+      name: titled,
+      partners,
       portraits,
     });
   }
@@ -699,7 +700,7 @@ async function loadCircle(sql: Sql, id: string) {
       note: row.note,
       amount: Number(row.amount),
       balance: running,
-      bill: row.bill_key ? await readThumb(row.bill_key) : "",
+      bill: row.bill_key ? await photoUrl({ storage_key: row.bill_key, mime: row.bill_mime ?? undefined }) : "",
     });
   }
   return { ...circle, members: dressed, waiting, others, kitty: running, opening, each, bills, ledger };
@@ -969,12 +970,12 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
       from people where couple_id = ${coupleId}
       order by id
     `;
-    const assets = await sql<{ role: string; storage_key: string }>`
-      select role, storage_key from application_assets where couple_id = ${coupleId}
+    const assets = await sql<{ role: string; mime: string; storage_key: string; body: string | null }>`
+      select role, mime, storage_key, body from application_assets where couple_id = ${coupleId}
     `;
     const photos: { role: string; src: string }[] = [];
     for (const asset of assets) {
-      const src = await readThumb(asset.storage_key);
+      const src = await photoUrl(asset, sql);
       if (src) photos.push({ role: asset.role, src });
     }
     const row = profileRows[0];

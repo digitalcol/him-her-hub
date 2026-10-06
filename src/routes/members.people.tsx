@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ReviewPortrait } from "@/components/review-portrait";
 import { memberHome } from "@/lib/club-api";
 
 export const Route = createFileRoute("/members/people")({
@@ -10,20 +11,49 @@ export const Route = createFileRoute("/members/people")({
 function People() {
   const { circle } = Route.useLoaderData();
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
+    <main className="mx-auto w-full max-w-5xl px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">{circle.name}</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Members.</h1>
       <ul className="mt-10 divide-y divide-line border-y border-line">
-        {circle.members.map((member) => (
-          <li key={member.id} className="flex items-baseline justify-between gap-6 py-4">
-            <p className="font-medium text-fg">
-              <a href={`/apply?for=${member.id}`} className="underline">
-                {member.name}
-              </a>
-            </p>
-            <p className="shrink-0 text-sm text-muted">{member.area}</p>
-          </li>
-        ))}
+        {circle.members.map((member) => {
+          const [one, two] = member.partners;
+          const href = `/apply?for=${member.id}`;
+          return (
+            <li key={member.id} className="py-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                <div className="flex shrink-0 gap-4">
+                  <ReviewPortrait href={href} label={one?.first_name || "One"} src={member.portraits.one} />
+                  <ReviewPortrait href={href} label={two?.first_name || "Other"} src={member.portraits.two} />
+                  <ReviewPortrait href={href} label="Together" src={member.portraits.together} />
+                </div>
+                <div className="min-w-0">
+                  <a href={href} className="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
+                    {member.name}
+                  </a>
+                  <p className="mt-2 text-sm text-muted">{member.area}</p>
+                  {member.filled ? (
+                    <ul className="mt-3 space-y-2 text-sm text-fg">
+                      {member.partners.map((person) => (
+                        <li key={person.email || person.first_name}>
+                          {[person.first_name, person.last_name].filter(Boolean).join(" ")}
+                          <span className="text-muted">
+                            {" "}
+                            · {[person.profession, person.phone, person.email, person.instagram].filter(Boolean).join(" · ")}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <a href={href} className="mt-3 inline-flex text-sm text-fg underline">
+                      Fill the form
+                    </a>
+                  )}
+                  {member.about ? <p className="mt-3 max-w-xl text-sm text-pretty text-soft">{member.about}</p> : null}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </main>
   );
