@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PaidMark } from "@/components/kitty-statement";
 import { ReviewPortrait } from "@/components/review-portrait";
 import { memberHome } from "@/lib/club-api";
 
@@ -13,7 +12,7 @@ function MemberCircle() {
   const { circle, events } = Route.useLoaderData();
   const next = events[0];
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
+    <main className="mx-auto w-full max-w-5xl px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Circle</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">{circle.name}</h1>
       <ul className="mt-10 divide-y divide-line border-y border-line">
@@ -21,23 +20,22 @@ function MemberCircle() {
           const [one, two] = member.partners;
           const href = `/apply?for=${member.id}`;
           return (
-            <li key={member.id} className="py-5">
-              <div className="flex items-start justify-between gap-6">
-                <div className="min-w-0">
-                  <div className="flex gap-4">
-                    <ReviewPortrait href={href} label={one?.first_name || "One"} src={member.portraits.one} />
-                    <ReviewPortrait href={href} label={two?.first_name || "Other"} src={member.portraits.two} />
-                    <ReviewPortrait href={href} label="Together" src={member.portraits.together} />
-                  </div>
-                  <p className="mt-4 font-medium text-fg">
-                    <a href={href} className="underline">
-                      {member.name}
-                    </a>
-                    <PaidMark paid={member.paid} />
-                  </p>
-                  {member.host_label ? <p className="mt-1 text-sm text-muted">{member.host_label}</p> : null}
+            <li key={member.id} className="py-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                <div className="flex shrink-0 gap-4">
+                  <ReviewPortrait href={href} label={one?.first_name || "One"} src={member.portraits.one} />
+                  <ReviewPortrait href={href} label={two?.first_name || "Other"} src={member.portraits.two} />
+                  <ReviewPortrait href={href} label="Together" src={member.portraits.together} />
                 </div>
-                <p className="shrink-0 pt-1 text-sm text-muted">{member.area}</p>
+                <div className="min-w-0">
+                  <a href={href} className="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
+                    {member.name}
+                  </a>
+                  <p className={member.paid ? "mt-2 text-sm font-medium text-[#1f7a3a]" : "mt-2 text-sm font-medium text-[#b42318]"}>{member.paid ? "Paid" : "Unpaid"}</p>
+                  <p className="mt-1 text-sm text-muted">
+                    {[member.host_label, member.area].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
               </div>
             </li>
           );
@@ -57,7 +55,16 @@ function MemberCircle() {
           <dd className="mt-1 text-fg">₹{Number(circle.renewal_fee).toLocaleString("en-IN")}</dd>
         </div>
       </dl>
-      <p className="mt-6 text-sm text-fg">Balance ₹{circle.kitty.toLocaleString("en-IN")}</p>
+      <div className="mt-8 flex flex-wrap gap-10">
+        <p>
+          <span className="block text-3xl font-semibold tracking-tight text-[#1f7a3a]">₹{Number(circle.opening).toLocaleString("en-IN")}</span>
+          <span className="mt-1 block text-sm text-muted">Received</span>
+        </p>
+        <p>
+          <span className="block text-3xl font-semibold tracking-tight text-[#b42318]">₹{Math.max(0, circle.members.length * Number(circle.each) - Number(circle.opening)).toLocaleString("en-IN")}</span>
+          <span className="mt-1 block text-sm text-muted">To receive</span>
+        </p>
+      </div>
       {circle.whatsapp_url ? (
         <a href={circle.whatsapp_url} className="mt-6 inline-flex h-11 items-center text-sm font-medium text-fg underline" target="_blank" rel="noreferrer">
           Join the WhatsApp group
