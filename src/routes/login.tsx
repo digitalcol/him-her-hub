@@ -18,7 +18,7 @@ function Login() {
     const email = String(new FormData(event.currentTarget).get("email") ?? "");
     try {
       await signInMember({ data: { email } });
-      window.location.assign("/members/circle");
+      window.location.assign("/members");
     } catch (caught) {
       setNote(caught instanceof Error ? caught.message : "That email is not in a Circle yet.");
       setPending(false);

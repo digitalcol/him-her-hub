@@ -18,7 +18,10 @@ const ADMIN_LINKS = [
   { to: "/admin/notices", label: "Notices" },
 ] as const;
 
-const MEMBER_LINKS = [{ to: "/members/circle", label: "Circle" }] as const;
+const MEMBER_LINKS = [
+  { to: "/members", label: "Member" },
+  { to: "/members/circle", label: "Circle" },
+] as const;
 
 export function SiteHeader() {
   const path = useRouterState({ select: (state) => state.location.pathname });
@@ -68,7 +71,7 @@ export function SiteHeader() {
               Log out
             </button>
           ) : (
-            <Link to="/members/circle" className="hidden h-11 items-center px-2 text-sm text-fg lg:inline-flex">
+            <Link to="/members" className="hidden h-11 items-center px-2 text-sm text-fg lg:inline-flex">
               Members
             </Link>
           )}
@@ -106,7 +109,7 @@ export function SiteHeader() {
               Log out
             </button>
           ) : (
-            <Link to="/members/circle" className="block py-3 text-2xl font-medium tracking-tight text-fg" onClick={() => setOpen(false)}>
+            <Link to="/members" className="block py-3 text-2xl font-medium tracking-tight text-fg" onClick={() => setOpen(false)}>
               Members
             </Link>
           )}

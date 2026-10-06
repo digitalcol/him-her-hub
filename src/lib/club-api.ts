@@ -898,8 +898,29 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     select count(*) as n from contributions where circle_id = ${circleId} and status = 'PAID'
   `;
   const yours = await sql<{ status: string }>`
-    select status from contributions where circle_id = ${circleId} and couple_id = ${coupleId} and status = 'PAID' limit 1
+    select status from contributions
+    where circle_id = ${circleId} and couple_id = ${coupleId}
+    order by case status when 'PAID' then 0 when 'SENT' then 1 else 2 end
+    limit 1
   `;
+  const profileRows = await sql<{ name: string; area: string; about: string }>`
+    select name, area, about from couples where id = ${coupleId}
+  `;
+  const people = await sql<{ id: string; first_name: string; last_name: string; profession: string; instagram: string; phone: string; email: string }>`
+    select id, first_name, last_name, profession, instagram, phone, email
+    from people where couple_id = ${coupleId}
+    order by id
+  `;
+  const assets = await sql<{ role: string; storage_key: string }>`
+    select role, storage_key from application_assets where couple_id = ${coupleId}
+  `;
+  const photos: { role: string; src: string }[] = [];
+  for (const asset of assets) {
+    const src = await readThumb(asset.storage_key);
+    if (src) photos.push({ role: asset.role, src });
+  }
+  const profile = profileRows[0];
+  const payment = yours[0]?.status === "PAID" ? "Paid" : yours[0]?.status === "SENT" ? "Sent" : "Due";
   return {
     circle,
     events,
@@ -907,10 +928,49 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     replies,
     notices,
     you: coupleId,
+    profile: profile ? { ...profile, people, photos, payment } : null,
     funding: {
       paid: Number(paid[0]?.n ?? 0),
       seats: Number(circle.capacity),
-      yours: yours[0] ? "Paid" : "Pending",
+      yours: payment === "Paid" ? "Paid" : "Pending",
     },
   };
+});
+
+export const updateOwnDetails = createServerFn({ method: "POST" })
+  .validator((data: { area: string; about: string; people: { id: string; phone: string; email: string; profession: string; instagram: string }[] }) => data)
+  .handler(async ({ data }) => {
+    const sql = await ready();
+    const { memberCoupleId } = await import("@/lib/member-session.server");
+    const coupleId = memberCoupleId();
+    if (!coupleId) throw new Error("Sign in to see your Circle.");
+    await sql`update couples set area = ${data.area.trim()}, about = ${data.about.trim()}, updated_at = now() where id = ${coupleId}`;
+    for (const person of data.people) {
+      await sql`update people set phone = ${person.phone.trim()}, email = ${person.email.trim()}, profession = ${person.profession.trim()}, instagram = ${person.instagram.trim()}
+        where id = ${person.id} and couple_id = ${coupleId}`;
+    }
+    return { ok: true };
+  });
+
+export const sendOwnKitty = createServerFn({ method: "POST" }).handler(async () => {
+  const sql = await ready();
+  const { memberCoupleId } = await import("@/lib/member-session.server");
+  const coupleId = memberCoupleId();
+  if (!coupleId) throw new Error("Sign in to see your Circle.");
+  const seated = await sql<{ circle_id: string }>`
+    select circle_id from circle_memberships where couple_id = ${coupleId} and status = 'ACTIVE' limit 1
+  `;
+  const circleId = seated[0]?.circle_id;
+  if (!circleId) throw new Error("No Circle is assigned yet.");
+  const circles = await sql<{ kitty_amount: number }>`select kitty_amount from circles where id = ${circleId}`;
+  const amount = Number(circles[0]?.kitty_amount ?? 0);
+  const existing = await sql<{ status: string }>`
+    select status from contributions where circle_id = ${circleId} and couple_id = ${coupleId} and status in ('PAID', 'SENT') limit 1
+  `;
+  if (existing[0]?.status === "PAID") return { ok: true };
+  if (!existing[0]) {
+    await sql`insert into contributions (id, circle_id, couple_id, expected_amount, status, recorded_by)
+      values (${crypto.randomUUID()}, ${circleId}, ${coupleId}, ${amount}, 'SENT', 'member')`;
+  }
+  return { ok: true };
 });

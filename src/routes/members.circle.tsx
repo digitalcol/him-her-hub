@@ -13,19 +13,13 @@ function MemberCircle() {
   const next = events[0];
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
-      <p className="text-xs tracking-index text-muted uppercase">{circle.name}</p>
-      <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Members.</h1>
+      <p className="text-xs tracking-index text-muted uppercase">Circle</p>
+      <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">{circle.name}</h1>
       <ul className="mt-10 divide-y divide-line border-y border-line">
         {circle.members.map((member) => (
           <li key={member.id} className="flex items-baseline justify-between gap-6 py-4">
             <p className="min-w-0 font-medium text-fg">
-              {member.filled ? (
-                member.name
-              ) : (
-                <a href={`/apply?for=${member.id}`} className="underline">
-                  {member.name}
-                </a>
-              )}
+              {member.name}
               <PaidMark paid={member.paid} />
               {member.host_label ? <span className="mt-1 block text-sm font-normal text-muted">{member.host_label}</span> : null}
             </p>
