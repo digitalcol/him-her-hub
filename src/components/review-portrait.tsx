@@ -4,11 +4,13 @@ export function ReviewPortrait({
   label,
   src,
   id,
+  href,
   attention = false,
 }: {
   label: string;
   src?: string;
   id?: string;
+  href?: string;
   attention?: boolean;
 }) {
   const ring = attention
@@ -28,6 +30,13 @@ export function ReviewPortrait({
       <span className="w-full truncate text-center text-xs text-fg">{label}</span>
     </span>
   );
+  if (href) {
+    return (
+      <a href={href} className="shrink-0">
+        {body}
+      </a>
+    );
+  }
   if (!id) return body;
   return (
     <Link to="/admin/applications/$id" params={{ id }} className="shrink-0">

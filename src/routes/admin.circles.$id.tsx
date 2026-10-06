@@ -2,6 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { assignCouple, addExpense, getCircle, markKittyPaid, moveCouple, removeCouple, setWhatsApp } from "@/lib/club-api";
 import { PaidMark } from "@/components/kitty-statement";
+import { ReviewPortrait } from "@/components/review-portrait";
 
 export const Route = createFileRoute("/admin/circles/$id")({
   head: () => ({ meta: [{ title: "Circle · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),
@@ -92,23 +93,27 @@ function CircleDetail() {
         <p className="text-xs tracking-index text-muted uppercase">In this Circle</p>
         {circle.members.length === 0 ? <p className="mt-3 text-sm text-muted">No one is in this Circle yet.</p> : null}
         <ul className="mt-3 divide-y divide-line border-y border-line">
-          {circle.members.map((member) => (
-            <li key={member.id} className="py-4">
-              <div className="flex items-baseline justify-between gap-6">
-                <p className="min-w-0 font-medium text-fg">
-                  {member.filled ? (
-                    <Link to="/admin/applications/$id" params={{ id: member.id }} className="underline">
-                      {member.name}
-                    </Link>
-                  ) : (
-                    <a href={`/apply?for=${member.id}`} className="underline">
+          {circle.members.map((member) => {
+            const [one, two] = member.partners;
+            const href = member.filled ? `/admin/applications/${member.id}` : `/apply?for=${member.id}`;
+            return (
+            <li key={member.id} className="py-5">
+              <div className="flex items-start justify-between gap-6">
+                <div className="min-w-0">
+                  <div className="flex gap-4">
+                    <ReviewPortrait href={href} label={one?.first_name || "One"} src={member.portraits.one} />
+                    <ReviewPortrait href={href} label={two?.first_name || "Other"} src={member.portraits.two} />
+                    <ReviewPortrait href={href} label="Together" src={member.portraits.together} />
+                  </div>
+                  <p className="mt-4 font-medium text-fg">
+                    <a href={href} className="underline">
                       {member.name}
                     </a>
-                  )}
-                  <PaidMark paid={member.paid} />
-                  {member.host_label ? <span className="mt-1 block text-sm font-normal text-muted">{member.host_label}</span> : null}
-                </p>
-                <p className="shrink-0 text-sm text-muted">{member.area}</p>
+                    <PaidMark paid={member.paid} />
+                  </p>
+                  {member.host_label ? <p className="mt-1 text-sm text-muted">{member.host_label}</p> : null}
+                </div>
+                <p className="shrink-0 pt-1 text-sm text-muted">{member.area}</p>
               </div>
               <div className="mt-2 flex gap-4">
                 {member.paid ? null : (
@@ -147,7 +152,8 @@ function CircleDetail() {
                 <p className="mt-2 text-sm text-muted">Open another Circle before you can move someone.</p>
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
         <p className="mt-4 text-sm text-fg">Balance ₹{circle.kitty.toLocaleString("en-IN")}</p>
         <ul className="mt-3 divide-y divide-line border-y border-line">

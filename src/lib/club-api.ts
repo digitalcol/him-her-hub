@@ -642,8 +642,34 @@ async function loadCircle(sql: Sql, id: string) {
     where m.circle_id = ${id} and m.status = 'ACTIVE'
     order by m.host_order nulls last, c.name
   `;
+  const people = await sql<{ couple_id: string; first_name: string }>`
+    select p.couple_id, p.first_name
+    from people p
+    join circle_memberships m on m.couple_id = p.couple_id
+    where m.circle_id = ${id} and m.status = 'ACTIVE'
+    order by p.id
+  `;
+  const assets = await sql<{ couple_id: string; role: string; storage_key: string }>`
+    select a.couple_id, a.role, a.storage_key
+    from application_assets a
+    join circle_memberships m on m.couple_id = a.couple_id
+    where m.circle_id = ${id} and m.status = 'ACTIVE'
+  `;
+  const dressed = [];
+  for (const member of members) {
+    const portraits = { one: "", two: "", together: "" };
+    for (const asset of assets.filter((item) => item.couple_id === member.id)) {
+      if (asset.role !== "one" && asset.role !== "two" && asset.role !== "together") continue;
+      portraits[asset.role] = await readThumb(asset.storage_key);
+    }
+    dressed.push({
+      ...member,
+      partners: people.filter((person) => person.couple_id === member.id).slice(0, 2),
+      portraits,
+    });
+  }
   const waiting = (await couples(sql)).filter((row) =>
-    canAssign(row.status, row.assigned, Number(circle.capacity), members.length),
+    canAssign(row.status, row.assigned, Number(circle.capacity), dressed.length),
   );
   const others = await sql<{ id: string; name: string; capacity: number; taken: number }>`
     select c.id, c.name, c.capacity, count(m.couple_id) filter (where m.status = 'ACTIVE') as taken
@@ -680,7 +706,7 @@ async function loadCircle(sql: Sql, id: string) {
       bill: row.bill_key ? await readThumb(row.bill_key) : "",
     });
   }
-  return { ...circle, members, waiting, others, kitty: running, opening, each, bills, ledger };
+  return { ...circle, members: dressed, waiting, others, kitty: running, opening, each, bills, ledger };
 }
 
 export const getCircle = createServerFn({ method: "GET" })
