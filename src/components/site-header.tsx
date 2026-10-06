@@ -17,7 +17,10 @@ const ADMIN_LINKS = [
   { to: "/admin/notices", label: "Notices" },
 ] as const;
 
-const MEMBER_LINKS = [{ to: "/members/circle", label: "Circle" }] as const;
+const MEMBER_LINKS = [
+  { to: "/members/circle", label: "Circle" },
+  { to: "/members/people", label: "Members" },
+] as const;
 
 export function SiteHeader() {
   const path = useRouterState({ select: (state) => state.location.pathname });
