@@ -80,7 +80,11 @@ function Apply() {
         <p className="text-xs tracking-index text-muted uppercase">Orion</p>
         <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">{slot.name}</h1>
         {slot.photoCount > 0 ? (
-          <p className="mt-6 text-sm text-muted">Photographs are on file.</p>
+          <div className="mt-8 flex gap-3">
+            {(["one", "two", "together"] as const).map((role) => (
+              <img key={role} src={`/portraits/${slot.id}/${role}`} alt="" className="size-24 rounded-full object-cover" />
+            ))}
+          </div>
         ) : (
           <PhotoReplace coupleId={slot.id} />
         )}
