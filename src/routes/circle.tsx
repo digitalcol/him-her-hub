@@ -22,7 +22,7 @@ function Circle() {
           <p>Tell us a little about the two of you. We read every note.</p>
           <p>If there is a place for you, we will be in touch.</p>
         </div>
-        <Link to="/apply" className="group mt-10 inline-flex items-center gap-2 text-sm font-medium text-fg">
+        <Link to="/apply" search={{ for: "" }} className="group mt-10 inline-flex items-center gap-2 text-sm font-medium text-fg">
           Join the waitlist
           <ArrowUpRight
             className="size-4 text-accent transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"

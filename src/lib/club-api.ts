@@ -116,6 +116,7 @@ async function ready() {
   const sql = await getSql();
   await seed(sql);
   await ensureRamSita(sql);
+  await ensureOrionRoster(sql);
   await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
   if (isPreviewMode() && dbSource === "pglite") {
     await sql`insert into expenses (id, circle_id, amount, note, status)
@@ -154,6 +155,68 @@ type CoupleRow = {
   assigned: boolean;
   circle: string | null;
 };
+
+const ORION_ROSTER = [
+  ["orion-neeta-vishal", "Neeta", "", "Vishal", "", "Mar-26", 1, true],
+  ["orion-priyanka-lalit", "Priyanka", "", "Lalit", "", "Apr-26", 2, false],
+  ["orion-divya-goutham", "Divya", "", "Goutham", "Bharaj", "Oct-26", 3, false],
+  ["orion-nikita-niraj", "Nikita", "", "Niraj", "", "Nov-26", 4, false],
+  ["orion-priyanka-deepesh", "Priyanka", "", "Deepesh", "", "Dec-26", 5, false],
+  ["orion-rachana-yash", "Rachana", "", "Yash", "", "Jan-27", 6, false],
+  ["orion-seema-dilip", "Seema", "", "Dilip", "", "Feb-27", 7, true],
+  ["orion-vishaka-anand", "Vishaka", "", "Anand", "", "Mar-27", 8, false],
+  ["orion-ankita-kunal", "Ankita", "", "Kunal", "", "Apr-27", 9, false],
+] as const;
+
+async function ensureOrionRoster(sql: Sql) {
+  let circles = await sql<{ id: string; kitty_amount: number }>`
+    select id, kitty_amount from circles where lower(name) = 'orion' order by id limit 1
+  `;
+  if (!circles[0]) {
+    await sql`insert into circles (id, name, city, status, capacity, kitty_amount, joining_fee, renewal_fee, rules, description)
+      values ('orion', 'Orion', 'Bangalore', 'ACTIVE', 10, 10000, 0, 0, '', 'The first Circle.')`;
+    circles = await sql<{ id: string; kitty_amount: number }>`select id, kitty_amount from circles where id = 'orion'`;
+  }
+  const circleId = circles[0].id;
+  const kitty = Number(circles[0].kitty_amount);
+  await sql`update circles set capacity = greatest(capacity, 10) where id = ${circleId}`;
+  for (const [id, one, oneLast, two, twoLast, month, order, paid] of ORION_ROSTER) {
+    const name = twoLast ? `${one} & ${two} ${twoLast}` : `${one} & ${two}`;
+    const existing = await sql<{ id: string }>`select id from couples where id = ${id}`;
+    if (existing.length === 0) {
+      await sql`insert into couples (id, name, area, about, interests, status, photo_consent)
+        values (${id}, ${name}, 'Bangalore', '', '', 'ASSIGNED', false)`;
+      await sql`insert into people (id, couple_id, first_name, last_name)
+        values (${`${id}-a`}, ${id}, ${one}, ${oneLast})`;
+      await sql`insert into people (id, couple_id, first_name, last_name)
+        values (${`${id}-b`}, ${id}, ${two}, ${twoLast})`;
+    }
+    const member = await sql<{ id: string }>`
+      select id from circle_memberships where circle_id = ${circleId} and couple_id = ${id} and status = 'ACTIVE'
+    `;
+    if (member.length === 0) {
+      await sql`insert into circle_memberships (id, circle_id, couple_id, status, host_order, host_label)
+        values (${`m-${id}`}, ${circleId}, ${id}, 'ACTIVE', ${order}, ${month})`;
+    } else {
+      await sql`update circle_memberships
+        set host_order = coalesce(host_order, ${order}),
+            host_label = coalesce(host_label, ${month})
+        where id = ${member[0].id}`;
+    }
+    if (!paid) continue;
+    const already = await sql<{ n: number }>`
+      select count(*) as n from contributions where circle_id = ${circleId} and couple_id = ${id} and status = 'PAID'
+    `;
+    if (Number(already[0]?.n) > 0) continue;
+    const contributionId = `con-${id}`;
+    await sql`insert into contributions (id, circle_id, couple_id, expected_amount, status, paid_at, recorded_by)
+      values (${contributionId}, ${circleId}, ${id}, ${kitty}, 'PAID', now(), 'roster')
+      on conflict (id) do nothing`;
+    await sql`insert into ledger (id, circle_id, kind, amount, note, reference_type, reference_id, created_by)
+      values (${`pay-${id}`}, ${circleId}, 'CONTRIBUTION', ${kitty}, ${name}, 'CONTRIBUTION', ${contributionId}, 'roster')
+      on conflict (id) do nothing`;
+  }
+}
 
 async function ensureRamSita(sql: Sql) {
   const existing = await sql<{ id: string }>`select id from couples where id = 'ram-sita'`;
@@ -427,6 +490,92 @@ export const submitApplication = createServerFn({ method: "POST" })
     return { id };
   });
 
+export const getRosterSlot = createServerFn({ method: "GET" })
+  .validator((data: { id: string }) => data)
+  .handler(async ({ data }) => {
+    if (!data.id) return null;
+    const sql = await ready();
+    const rows = await sql<{ id: string; name: string; filled: boolean }>`
+      select c.id, c.name,
+        exists (
+          select 1 from people p
+          where p.couple_id = c.id and p.email is not null and p.email <> ''
+        ) as filled
+      from couples c
+      join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
+      where c.id = ${data.id}
+    `;
+    const row = rows[0];
+    if (!row) return null;
+    const people = await sql<{ first_name: string; last_name: string }>`
+      select first_name, last_name from people where couple_id = ${data.id} order by id
+    `;
+    return {
+      id: row.id,
+      name: row.name,
+      filled: row.filled,
+      one: people[0] ?? { first_name: "", last_name: "" },
+      two: people[1] ?? { first_name: "", last_name: "" },
+    };
+  });
+
+export const completeRoster = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    const parsed = applicationInput.extend({ coupleId: z.string().trim().min(1).max(80) }).safeParse(data);
+    if (!parsed.success) throw new Error(applicationError(parsed.error));
+    return parsed.data;
+  })
+  .handler(async ({ data }) => {
+    const sql = await ready();
+    const rows = await sql<{ id: string }>`
+      select c.id from couples c
+      join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
+      where c.id = ${data.coupleId}
+    `;
+    if (!rows[0]) throw new Error("That place could not be found.");
+    const filled = await sql<{ n: number }>`
+      select count(*) as n from people where couple_id = ${data.coupleId} and email is not null and email <> ''
+    `;
+    if (Number(filled[0]?.n) > 0) throw new Error("This form has already been received.");
+    const name = `${data.one.first} & ${data.two.first}`;
+    const interests = data.interests.join(", ");
+    await sql`update couples
+      set name = ${name},
+          area = ${data.area},
+          about = ${data.about},
+          interests = ${interests},
+          referral = ${data.referred || null},
+          photo_consent = ${data.photoConsent},
+          anniversary = ${data.anniversary || null},
+          organise = ${data.organise || null},
+          updated_at = now()
+      where id = ${data.coupleId}`;
+    for (const [key, person] of [
+      ["a", data.one],
+      ["b", data.two],
+    ] as const) {
+      await sql`update people
+        set first_name = ${person.first},
+            last_name = ${person.last},
+            profession = ${person.profession},
+            instagram = ${normalizeInstagram(person.instagram)},
+            phone = ${normalizePhone(person.mobile)},
+            email = ${person.email},
+            dob = ${person.dob}
+        where id = ${`${data.coupleId}-${key}`}`;
+    }
+    for (const [role, value] of [
+      ["one", data.photos.one],
+      ["two", data.photos.two],
+      ["together", data.photos.together],
+    ] as const) {
+      const saved = await savePrivatePhoto(value);
+      await sql`insert into application_assets (id, couple_id, role, mime, storage_key)
+        values (${crypto.randomUUID()}, ${data.coupleId}, ${role}, ${saved.mime}, ${saved.key})`;
+    }
+    return { id: data.coupleId };
+  });
+
 export const listCircles = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await ready();
   const circles = await sql<{ id: string; name: string; city: string; status: string; capacity: number; kitty_amount: number; joining_fee: number; renewal_fee: number; taken: number }>`
@@ -465,12 +614,16 @@ async function loadCircle(sql: Sql, id: string) {
   }>`select id, name, city, status, capacity, kitty_amount, whatsapp_url, joining_fee, renewal_fee, rules from circles where id = ${id}`;
   const circle = circles[0];
   if (!circle) throw new Error("Circle not found.");
-  const members = await sql<{ id: string; name: string; area: string; host_order: number | null; paid: boolean }>`
-    select c.id, c.name, c.area, m.host_order,
+  const members = await sql<{ id: string; name: string; area: string; host_order: number | null; host_label: string | null; paid: boolean; filled: boolean }>`
+    select c.id, c.name, c.area, m.host_order, m.host_label,
       exists (
         select 1 from contributions k
         where k.circle_id = m.circle_id and k.couple_id = c.id and k.status = 'PAID'
-      ) as paid
+      ) as paid,
+      exists (
+        select 1 from people p
+        where p.couple_id = c.id and p.email is not null and p.email <> ''
+      ) as filled
     from circle_memberships m
     join couples c on c.id = m.couple_id
     where m.circle_id = ${id} and m.status = 'ACTIVE'
@@ -696,7 +849,10 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     where couple_id = 'c1' and status = 'ACTIVE'
     limit 1
   `;
-  const circleId = actor.role === "member" ? actor.circleId : seated[0]?.circle_id;
+  const named = seated[0]
+    ? []
+    : await sql<{ id: string }>`select id from circles where lower(name) = 'orion' order by id limit 1`;
+  const circleId = actor.role === "member" ? actor.circleId : (seated[0]?.circle_id ?? named[0]?.id);
   if (!circleId) throw new Error("No Circle is assigned yet.");
   if (!canReadCircle(actor, circleId)) throw new Error("This Circle is not available.");
   const circle = await loadCircle(sql, circleId);

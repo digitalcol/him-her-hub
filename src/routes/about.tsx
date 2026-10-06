@@ -20,7 +20,7 @@ function About() {
         <p>If you would like to be invited, join the waitlist. We read every note.</p>
         <p>The rest happens in real life.</p>
       </div>
-      <Link to="/apply" className="group mt-10 inline-flex items-center gap-2 text-sm font-medium text-fg">
+      <Link to="/apply" search={{ for: "" }} className="group mt-10 inline-flex items-center gap-2 text-sm font-medium text-fg">
         Join the waitlist
         <ArrowUpRight
           className="size-4 text-accent transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"

@@ -52,8 +52,14 @@ function MemberCircle() {
       <ol className="mt-3 divide-y divide-line border-y border-line">
         {circle.members.map((member) => (
           <li key={member.id} className="flex gap-4 py-3 text-sm">
-            <span className="w-6 text-muted">{member.host_order ?? "–"}</span>
-            <span className="text-fg">{member.name}</span>
+            <span className="w-16 text-muted">{member.host_label ?? member.host_order ?? "–"}</span>
+            {member.filled ? (
+              <span className="text-fg">{member.name}</span>
+            ) : (
+              <a href={`/apply?for=${member.id}`} className="text-fg underline">
+                {member.name}
+              </a>
+            )}
           </li>
         ))}
       </ol>

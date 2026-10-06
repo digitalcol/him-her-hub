@@ -93,10 +93,16 @@ function CircleDetail() {
             <li key={member.id} className="py-4">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <p className="font-medium text-fg">
-                  <span className="mr-3 text-muted">{member.host_order ?? "–"}</span>
-                  <Link to="/admin/applications/$id" params={{ id: member.id }} className="underline">
-                    {member.name}
-                  </Link>
+                  <span className="mr-3 text-muted">{member.host_label ?? member.host_order ?? "–"}</span>
+                  {member.filled ? (
+                    <Link to="/admin/applications/$id" params={{ id: member.id }} className="underline">
+                      {member.name}
+                    </Link>
+                  ) : (
+                    <a href={`/apply?for=${member.id}`} className="underline">
+                      {member.name}
+                    </a>
+                  )}
                   <span className="text-sm font-normal text-muted"> · {member.area}</span>
                   <span className={member.paid ? "ml-3 text-sm font-medium text-[#1f7a3a]" : "ml-3 text-sm font-medium text-[#b42318]"}>
                     {member.paid ? "Paid" : "Unpaid"}

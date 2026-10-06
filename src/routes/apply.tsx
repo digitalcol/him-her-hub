@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { submitApplication } from "@/lib/club-api";
+import { completeRoster, getRosterSlot, submitApplication } from "@/lib/club-api";
 
 export const Route = createFileRoute("/apply")({
+  validateSearch: (search: Record<string, unknown>): { for: string } => ({
+    for: typeof search.for === "string" ? search.for : "",
+  }),
+  loaderDeps: ({ search }) => ({ for: search.for }),
+  loader: ({ deps }) => (deps.for ? getRosterSlot({ data: { id: deps.for } }) : null),
   head: () => ({ meta: [{ title: "Waitlist · Him·Her·Hub" }] }),
   component: Apply,
 });
@@ -10,6 +15,7 @@ export const Route = createFileRoute("/apply")({
 const INTERESTS = ["Dining", "Travel", "Live music", "Theatre", "Outdoors", "House evenings", "Brunch", "Art", "Sports", "Weekend trips", "Food", "Wellness"];
 
 function Apply() {
+  const slot = Route.useLoaderData();
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,34 +43,44 @@ function Apply() {
       if ([one.mobile, two.mobile].some((value) => value.replace(/\D/g, "").length < 8)) {
         throw new Error("Enter a full mobile number for each of you.");
       }
-      await submitApplication({
-        data: {
-          one,
-          two,
-          area: String(form.get("area") ?? ""),
-          anniversary: String(form.get("anniversary") ?? ""),
-          referred: String(form.get("referred") ?? ""),
-          about: String(form.get("about") ?? ""),
-          interests: form.getAll("interests").map(String),
-          organise: String(form.get("organise") ?? ""),
-          privacyConsent: true,
-          photoConsent: form.get("photo-consent") === "on",
-          photos,
-        },
-      });
+      const body = {
+        one,
+        two,
+        area: String(form.get("area") ?? ""),
+        anniversary: String(form.get("anniversary") ?? ""),
+        referred: String(form.get("referred") ?? ""),
+        about: String(form.get("about") ?? ""),
+        interests: form.getAll("interests").map(String),
+        organise: String(form.get("organise") ?? ""),
+        privacyConsent: true as const,
+        photoConsent: form.get("photo-consent") === "on",
+        photos,
+      };
+      if (slot && !slot.filled) await completeRoster({ data: { ...body, coupleId: slot.id } });
+      else await submitApplication({ data: body });
       setSent(true);
     } catch (caught) {
       setError(messageFrom(caught));
     }
   }
 
+  if (slot?.filled) {
+    return (
+      <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
+        <p className="text-xs tracking-index text-muted uppercase">Orion</p>
+        <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">{slot.name}</h1>
+        <p className="mt-4 max-w-xl text-base text-pretty text-soft">This form has already been received.</p>
+      </main>
+    );
+  }
+
   if (sent) {
     return (
       <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:px-10">
-        <p className="text-xs tracking-index text-muted uppercase">Waitlist</p>
-        <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">You're on the waitlist.</h1>
+        <p className="text-xs tracking-index text-muted uppercase">{slot ? "Orion" : "Waitlist"}</p>
+        <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">{slot ? "We've got your details." : "You're on the waitlist."}</h1>
         <p className="mt-4 max-w-xl text-base text-pretty text-soft">
-          We've received your note. If there is a place for the two of you, we'll be in touch.
+          {slot ? "Thank you. Your place in the Circle stays as it is." : "We've received your note. If there is a place for the two of you, we'll be in touch."}
         </p>
       </main>
     );
@@ -72,13 +88,13 @@ function Apply() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-14 lg:max-w-5xl lg:px-10">
-      <p className="text-xs tracking-index text-muted uppercase">Waitlist</p>
-      <h1 className="mt-3 text-5xl font-semibold tracking-tight text-balance text-fg">Join the waitlist.</h1>
-      <p className="mt-4 max-w-xl text-base text-pretty text-soft">One form for the two of you.</p>
+      <p className="text-xs tracking-index text-muted uppercase">{slot ? "Orion" : "Waitlist"}</p>
+      <h1 className="mt-3 text-5xl font-semibold tracking-tight text-balance text-fg">{slot ? slot.name : "Join the waitlist."}</h1>
+      <p className="mt-4 max-w-xl text-base text-pretty text-soft">{slot ? "Fill this in for the two of you." : "One form for the two of you."}</p>
       <form className="mt-12 space-y-12" onSubmit={onSubmit}>
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-x-16">
-          <Partner title="01 / One of you" who="one" />
-          <Partner title="02 / The other" who="two" />
+          <Partner title="01 / One of you" who="one" first={slot?.one.first_name} last={slot?.one.last_name} />
+          <Partner title="02 / The other" who="two" first={slot?.two.first_name} last={slot?.two.last_name} />
         </div>
         <fieldset className="space-y-4">
           <legend className="text-xs tracking-index text-muted uppercase">03 / You two</legend>
@@ -119,19 +135,19 @@ function Apply() {
         </fieldset>
         {error ? <p className="text-sm text-soft">{error}</p> : null}
         <button type="submit" className="h-11 bg-fg px-5 text-sm font-medium text-bg">
-          Join the waitlist
+          {slot ? "Save your details" : "Join the waitlist"}
         </button>
       </form>
     </main>
   );
 }
 
-function Partner({ title, who }: { title: string; who: "one" | "two" }) {
+function Partner({ title, who, first = "", last = "" }: { title: string; who: "one" | "two"; first?: string; last?: string }) {
   return (
     <fieldset className="min-w-0 space-y-4">
       <legend className="text-xs tracking-index text-muted uppercase">{title}</legend>
-      <Field label="First name" name={`${who}-first`} required />
-      <Field label="Last name" name={`${who}-last`} required />
+      <Field label="First name" name={`${who}-first`} required defaultValue={first} />
+      <Field label="Last name" name={`${who}-last`} required defaultValue={last} />
       <Field label="Date of birth" name={`${who}-dob`} type="date" required />
       <Field label="Mobile" name={`${who}-mobile`} type="tel" required placeholder="98765 43210" />
       <Field label="Email" name={`${who}-email`} type="email" required />
@@ -145,11 +161,25 @@ function Partner({ title, who }: { title: string; who: "one" | "two" }) {
   );
 }
 
-function Field({ label, name, type = "text", required = false, placeholder }: { label: string; name: string; type?: string; required?: boolean; placeholder?: string }) {
+function Field({
+  label,
+  name,
+  type = "text",
+  required = false,
+  placeholder,
+  defaultValue,
+}: {
+  label: string;
+  name: string;
+  type?: string;
+  required?: boolean;
+  placeholder?: string;
+  defaultValue?: string;
+}) {
   return (
     <label className="block text-sm text-fg">
       {label}
-      <input className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base" name={name} type={type} required={required} placeholder={placeholder} />
+      <input className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base" name={name} type={type} required={required} placeholder={placeholder} defaultValue={defaultValue} />
     </label>
   );
 }
