@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { PaidMark } from "@/components/kitty-statement";
-import { listCircles } from "@/lib/club-api";
+import { listCircles, markKittyPaid } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/circles/")({
   head: () => ({ meta: [{ title: "Circles · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),
@@ -10,11 +10,18 @@ export const Route = createFileRoute("/admin/circles/")({
 
 function Circles() {
   const rows = Route.useLoaderData();
+  const router = useRouter();
+
+  async function receive(circleId: string, coupleId: string) {
+    await markKittyPaid({ data: { circleId, coupleId } });
+    await router.invalidate();
+  }
+
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Operations</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Circles.</h1>
-      <p className="mt-4 max-w-xl text-sm text-muted">Open a Circle to see who is in it, add someone, remove them, or move them to another Circle.</p>
+      <p className="mt-4 max-w-xl text-sm text-muted">Tap a name when the kitty has come in. It turns Paid.</p>
       <Link to="/admin/circles/new" className="mt-6 inline-flex h-11 items-center text-sm font-medium text-fg">
         New Circle
       </Link>
@@ -39,7 +46,13 @@ function Circles() {
                   {row.members.map((member) => (
                     <span key={member.id}>
                       {member.host_label ? <span className="mr-2 text-muted">{member.host_label}</span> : null}
-                      {member.name}
+                      {member.paid ? (
+                        member.name
+                      ) : (
+                        <button type="button" className="underline" onClick={() => void receive(row.id, member.id)}>
+                          {member.name}
+                        </button>
+                      )}
                       <PaidMark paid={member.paid} />
                     </span>
                   ))}
