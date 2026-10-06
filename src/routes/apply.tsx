@@ -161,20 +161,23 @@ function Apply() {
 function PhotoPick({ label, name }: { label: string; name: string }) {
   const [file, setFile] = useState("");
   return (
-    <label className="block text-sm text-fg">
-      {label}
-      <span className="mt-2 flex min-h-16 w-full items-center justify-center border border-fg bg-fg px-4 text-center text-base font-medium text-bg">
-        {file || "Tap to add a photograph"}
-      </span>
-      <input
-        className="sr-only"
-        name={name}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-        required
-        onChange={(event) => setFile(event.target.files?.[0]?.name ?? "")}
-      />
-    </label>
+    <div className="text-sm text-fg">
+      <p>{label}</p>
+      <label
+        className="mt-2 flex min-h-16 w-full cursor-pointer items-center justify-center bg-fg px-4 text-center text-base font-medium text-bg"
+        style={{ background: "#111", color: "#fff", minHeight: 64 }}
+      >
+        {file || "Choose a photograph"}
+        <input
+          name={name}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+          required
+          style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0, 0, 0, 0)", whiteSpace: "nowrap", border: 0 }}
+          onChange={(event) => setFile(event.target.files?.[0]?.name ?? "")}
+        />
+      </label>
+    </div>
   );
 }
 
