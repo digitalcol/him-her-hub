@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Instagram } from "lucide-react";
 import { ReviewPortrait } from "@/components/review-portrait";
 import { memberHome } from "@/lib/club-api";
 
@@ -7,6 +8,15 @@ export const Route = createFileRoute("/members/people")({
   loader: () => memberHome(),
   component: People,
 });
+
+function instagramHandle(value: string) {
+  return value
+    .trim()
+    .replace(/^@/, "")
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+    .replace(/\/.*$/, "")
+    .replace(/\?.*$/, "");
+}
 
 function People() {
   const { circle } = Route.useLoaderData();
@@ -33,15 +43,30 @@ function People() {
                   <p className="mt-2 text-sm text-muted">{member.area}</p>
                   {member.filled ? (
                     <ul className="mt-3 space-y-2 text-sm text-fg">
-                      {member.partners.map((person) => (
-                        <li key={person.email || person.first_name}>
-                          {[person.first_name, person.last_name].filter(Boolean).join(" ")}
-                          <span className="text-muted">
-                            {" "}
-                            · {[person.profession, person.phone, person.email, person.instagram].filter(Boolean).join(" · ")}
-                          </span>
-                        </li>
-                      ))}
+                      {member.partners.map((person) => {
+                        const handle = person.instagram ? instagramHandle(person.instagram) : "";
+                        const details = [person.profession, person.phone, person.email].filter(Boolean).join(" · ");
+                        return (
+                          <li key={person.email || person.first_name}>
+                            {[person.first_name, person.last_name].filter(Boolean).join(" ")}
+                            {details ? <span className="text-muted"> · {details}</span> : null}
+                            {handle ? (
+                              <>
+                                <span className="text-muted"> · </span>
+                                <a
+                                  href={`https://instagram.com/${handle}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-fg underline underline-offset-2"
+                                >
+                                  <Instagram className="size-3.5" aria-hidden="true" />
+                                  <span>Instagram @{handle}</span>
+                                </a>
+                              </>
+                            ) : null}
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : (
                     <a href={href} className="mt-3 inline-flex text-sm text-fg underline">
