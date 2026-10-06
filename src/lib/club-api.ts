@@ -646,7 +646,7 @@ async function loadCircle(sql: Sql, id: string) {
     const partners = people.filter((person) => person.couple_id === member.id).slice(0, 2);
     for (const asset of assets.filter((item) => item.couple_id === member.id)) {
       if (asset.role !== "one" && asset.role !== "two" && asset.role !== "together") continue;
-      portraits[asset.role] = await photoUrl(asset, sql);
+      portraits[asset.role] = "";
     }
     const titled =
       partners.length === 2 && partners.some((person) => person.last_name)
@@ -694,7 +694,7 @@ async function loadCircle(sql: Sql, id: string) {
       note: row.note,
       amount: Number(row.amount),
       balance: running,
-      bill: row.bill_key ? await photoUrl({ storage_key: row.bill_key, mime: row.bill_mime ?? undefined }) : "",
+      bill: "",
     });
   }
   return { ...circle, members: dressed, waiting, others, kitty: running, opening, each, bills, ledger };
@@ -967,11 +967,7 @@ export const memberHome = createServerFn({ method: "GET" }).handler(async () => 
     const assets = await sql<{ role: string; mime: string; storage_key: string; body: string | null }>`
       select role, mime, storage_key, body from application_assets where couple_id = ${coupleId}
     `;
-    const photos: { role: string; src: string }[] = [];
-    for (const asset of assets) {
-      const src = await photoUrl(asset, sql);
-      if (src) photos.push({ role: asset.role, src });
-    }
+    const photos: { role: string; src: string }[] = assets.map((asset) => ({ role: asset.role, src: "" }));
     const row = profileRows[0];
     if (row) {
       const payment = yours[0]?.status === "PAID" ? "Paid" : yours[0]?.status === "SENT" ? "Sent" : "Due";
