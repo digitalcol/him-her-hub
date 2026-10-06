@@ -472,23 +472,17 @@ export const getRosterSlot = createServerFn({ method: "GET" })
       select first_name, last_name, phone, email, profession, instagram from people where couple_id = ${data.id} order by id
     `;
     const couple = await sql<{ area: string; about: string }>`select area, about from couples where id = ${data.id}`;
-    const photos: { role: string; src: string }[] = [];
-    if (row.filled) {
-      const assets = await sql<{ role: string; mime: string; storage_key: string; body: string | null }>`
-        select role, mime, storage_key, body from application_assets where couple_id = ${data.id}
-      `;
-      for (const asset of assets) {
-        const src = await photoUrl(asset, sql);
-        if (src) photos.push({ role: asset.role, src });
-      }
-    }
+    const assets = row.filled
+      ? await sql<{ role: string }>`select role from application_assets where couple_id = ${data.id}`
+      : [];
     return {
       id: row.id,
       name: row.name,
       filled: row.filled,
       area: couple[0]?.area ?? "",
       about: couple[0]?.about ?? "",
-      photos,
+      photoCount: assets.length,
+      photos: [] as { role: string; src: string }[],
       one: people[0] ?? { first_name: "", last_name: "", phone: "", email: "", profession: "", instagram: "" },
       two: people[1] ?? { first_name: "", last_name: "", phone: "", email: "", profession: "", instagram: "" },
     };
