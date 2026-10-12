@@ -706,9 +706,16 @@ export const listCircles = createServerFn({ method: "GET" }).handler(async () =>
     where m.status = 'ACTIVE'
     order by m.host_order nulls last, c.name
   `;
+  const { openPassword } = await import("@/lib/couple-login.server");
+  const logins = await sql<{ couple_id: string; username: string; password_sealed: string }>`
+    select couple_id, username, password_sealed from couple_logins
+  `;
+  const byId = new Map(logins.map((row) => [row.couple_id, { username: row.username, password: openPassword(row.password_sealed) }]));
   return circles.map((circle) => ({
     ...circle,
-    members: seated.filter((member) => member.circle_id === circle.id),
+    members: seated
+      .filter((member) => member.circle_id === circle.id)
+      .map((member) => ({ ...member, login: byId.get(member.id) ?? null })),
   }));
 });
 

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
 import { PaidMark } from "@/components/kitty-statement";
-import { comingUp, listCircles, markKittyPaid } from "@/lib/club-api";
+import { comingUp, listCircles, markKittyPaid, setCoupleLogin } from "@/lib/club-api";
 
 export const Route = createFileRoute("/admin/circles/")({
   head: () => ({ meta: [{ title: "Circles · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),
@@ -11,17 +12,38 @@ export const Route = createFileRoute("/admin/circles/")({
 function Circles() {
   const [rows, dates] = Route.useLoaderData();
   const router = useRouter();
+  const [note, setNote] = useState<string | null>(null);
 
   async function receive(circleId: string, coupleId: string) {
     await markKittyPaid({ data: { circleId, coupleId } });
     await router.invalidate();
   }
 
+  async function saveLogin(event: FormEvent<HTMLFormElement>, coupleId: string) {
+    event.preventDefault();
+    setNote(null);
+    const form = new FormData(event.currentTarget);
+    try {
+      await setCoupleLogin({
+        data: {
+          coupleId,
+          username: String(form.get("username") ?? ""),
+          password: String(form.get("password") ?? ""),
+        },
+      });
+      setNote("Saved.");
+      await router.invalidate();
+    } catch (caught) {
+      setNote(caught instanceof Error ? caught.message : "Could not save that login.");
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Operations</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Circles.</h1>
-      <p className="mt-4 max-w-xl text-sm text-muted">Tap a name when the kitty has come in. Tap it again if that was a mistake.</p>
+      <p className="mt-4 max-w-xl text-sm text-muted">Tap a name when the kitty has come in. Tap it again if that was a mistake. The username and password for each couple are under the Circle.</p>
+      {note ? <p className="mt-3 text-sm text-soft">{note}</p> : null}
       <Link to="/admin/circles/new" className="mt-6 inline-flex h-11 items-center text-sm font-medium text-fg">
         New Circle
       </Link>
@@ -85,6 +107,39 @@ function Circles() {
                 </span>
               )}
             </p>
+            <div className="sm:col-span-4">
+              <p className="mt-4 text-xs tracking-index text-muted uppercase">Username and password</p>
+              <ul className="mt-2 divide-y divide-line border-y border-line">
+                {row.members.map((member) => (
+                  <li key={member.id} className="py-3">
+                    <form
+                      key={`${member.id}-${member.login?.username ?? ""}-${member.login?.password ?? ""}`}
+                      className="flex flex-wrap items-center gap-3"
+                      onSubmit={(event) => void saveLogin(event, member.id)}
+                    >
+                      <span className="w-full text-sm text-fg sm:w-64">{member.name}</span>
+                      <input
+                        name="username"
+                        defaultValue={member.login?.username ?? ""}
+                        placeholder="Username"
+                        autoComplete="off"
+                        className="w-40 border border-line bg-bg px-3 py-2 text-sm text-fg"
+                      />
+                      <input
+                        name="password"
+                        defaultValue={member.login?.password ?? ""}
+                        placeholder="Password"
+                        autoComplete="off"
+                        className="w-40 border border-line bg-bg px-3 py-2 text-sm text-fg"
+                      />
+                      <button type="submit" className="h-10 px-2 text-sm font-medium text-fg">
+                        Save
+                      </button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </li>
         ))}
       </ul>
