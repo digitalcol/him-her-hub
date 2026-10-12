@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { IG_URL, moments } from "@/lib/club";
+import { moments } from "@/lib/club";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,14 +21,6 @@ const PATHS = [
   },
   {
     k: "02",
-    label: "MOMENTS",
-    title: "See what we've been up to.",
-    body: "Dinners, trips, evenings and everything in between.",
-    to: "/moments",
-    cta: "See all moments",
-  },
-  {
-    k: "03",
     label: "WAITLIST",
     title: "Join the waitlist.",
     body: "Tell us a little about the two of you.",
@@ -104,7 +96,7 @@ function Home() {
               ))}
             </div>
           </div>
-          <div className="primary-pathways mt-6 grid border-t border-line lg:mt-auto lg:grid-cols-3 lg:gap-8 lg:pt-6">
+          <div className="primary-pathways mt-6 grid border-t border-line lg:mt-auto lg:grid-cols-2 lg:gap-8 lg:pt-6">
             {PATHS.map((path) => (
               <div key={path.to} className="border-b border-line py-4 lg:border-0 lg:py-0">
                 <p className="text-xs tracking-index text-muted uppercase">
@@ -114,17 +106,10 @@ function Home() {
                 </p>
                 <p className="mt-1 text-base font-medium tracking-tight text-pretty text-fg lg:mt-3 lg:text-lg">{path.title}</p>
                 <p className="mt-1 text-sm text-pretty text-muted lg:mt-2">{path.body}</p>
-                {path.k === "02" ? (
-                  <a href={IG_URL} target="_blank" rel="noreferrer" className="group mt-2 inline-flex items-center gap-2 text-sm font-medium text-fg lg:mt-4">
-                    Instagram
-                    <ArrowUpRight className="size-4 text-accent" aria-hidden="true" />
-                  </a>
-                ) : (
-                  <Link to={path.to} className="group mt-2 inline-flex items-center gap-2 text-sm font-medium text-fg lg:mt-4">
-                    {path.cta}
-                    <ArrowUpRight className="size-4 text-accent" aria-hidden="true" />
-                  </Link>
-                )}
+                <Link to={path.to} className="group mt-2 inline-flex items-center gap-2 text-sm font-medium text-fg lg:mt-4">
+                  {path.cta}
+                  <ArrowUpRight className="size-4 text-accent" aria-hidden="true" />
+                </Link>
               </div>
             ))}
           </div>

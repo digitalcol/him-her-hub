@@ -16,7 +16,6 @@ import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as CircleRouteImport } from './routes/circle'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MembersRouteImport } from './routes/members'
-import { Route as MomentsRouteImport } from './routes/moments'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -37,6 +36,7 @@ import { Route as AdminApplicationsIdRouteImport } from './routes/admin.applicat
 import { Route as AdminCirclesIndexRouteImport } from './routes/admin.circles.index'
 import { Route as AdminCirclesIdRouteImport } from './routes/admin.circles.$id'
 import { Route as AdminCirclesNewRouteImport } from './routes/admin.circles.new'
+import { Route as PortraitsCoupleIdRoleRouteImport } from './routes/portraits.$coupleId.$role'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -71,11 +71,6 @@ const LoginRoute = LoginRouteImport.update({
 const MembersRoute = MembersRouteImport.update({
   id: '/members',
   path: '/members',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MomentsRoute = MomentsRouteImport.update({
-  id: '/moments',
-  path: '/moments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OperationsRoute = OperationsRouteImport.update({
@@ -178,6 +173,11 @@ const AdminCirclesNewRoute = AdminCirclesNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AdminCirclesRoute,
 } as any)
+const PortraitsCoupleIdRoleRoute = PortraitsCoupleIdRoleRouteImport.update({
+  id: '/portraits/$coupleId/$role',
+  path: '/portraits/$coupleId/$role',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -187,7 +187,6 @@ export interface FileRoutesByFullPath {
   '/circle': typeof CircleRoute
   '/login': typeof LoginRoute
   '/members': typeof MembersRouteWithChildren
-  '/moments': typeof MomentsRoute
   '/operations': typeof OperationsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -206,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/admin/applications/$id': typeof AdminApplicationsIdRoute
   '/admin/circles/$id': typeof AdminCirclesIdRoute
   '/admin/circles/new': typeof AdminCirclesNewRoute
+  '/portraits/$coupleId/$role': typeof PortraitsCoupleIdRoleRoute
   '/admin/applications/': typeof AdminApplicationsIndexRoute
   '/admin/circles/': typeof AdminCirclesIndexRoute
 }
@@ -215,7 +215,6 @@ export interface FileRoutesByTo {
   '/apply': typeof ApplyRoute
   '/circle': typeof CircleRoute
   '/login': typeof LoginRoute
-  '/moments': typeof MomentsRoute
   '/operations': typeof OperationsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -232,6 +231,7 @@ export interface FileRoutesByTo {
   '/admin/applications/$id': typeof AdminApplicationsIdRoute
   '/admin/circles/$id': typeof AdminCirclesIdRoute
   '/admin/circles/new': typeof AdminCirclesNewRoute
+  '/portraits/$coupleId/$role': typeof PortraitsCoupleIdRoleRoute
   '/admin/applications': typeof AdminApplicationsIndexRoute
   '/admin/circles': typeof AdminCirclesIndexRoute
 }
@@ -244,7 +244,6 @@ export interface FileRoutesById {
   '/circle': typeof CircleRoute
   '/login': typeof LoginRoute
   '/members': typeof MembersRouteWithChildren
-  '/moments': typeof MomentsRoute
   '/operations': typeof OperationsRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -263,6 +262,7 @@ export interface FileRoutesById {
   '/admin/applications/$id': typeof AdminApplicationsIdRoute
   '/admin/circles/$id': typeof AdminCirclesIdRoute
   '/admin/circles/new': typeof AdminCirclesNewRoute
+  '/portraits/$coupleId/$role': typeof PortraitsCoupleIdRoleRoute
   '/admin/applications/': typeof AdminApplicationsIndexRoute
   '/admin/circles/': typeof AdminCirclesIndexRoute
 }
@@ -276,7 +276,6 @@ export interface FileRouteTypes {
     | '/circle'
     | '/login'
     | '/members'
-    | '/moments'
     | '/operations'
     | '/privacy'
     | '/terms'
@@ -295,6 +294,7 @@ export interface FileRouteTypes {
     | '/admin/applications/$id'
     | '/admin/circles/$id'
     | '/admin/circles/new'
+    | '/portraits/$coupleId/$role'
     | '/admin/applications/'
     | '/admin/circles/'
   fileRoutesByTo: FileRoutesByTo
@@ -304,7 +304,6 @@ export interface FileRouteTypes {
     | '/apply'
     | '/circle'
     | '/login'
-    | '/moments'
     | '/operations'
     | '/privacy'
     | '/terms'
@@ -321,6 +320,7 @@ export interface FileRouteTypes {
     | '/admin/applications/$id'
     | '/admin/circles/$id'
     | '/admin/circles/new'
+    | '/portraits/$coupleId/$role'
     | '/admin/applications'
     | '/admin/circles'
   id:
@@ -332,7 +332,6 @@ export interface FileRouteTypes {
     | '/circle'
     | '/login'
     | '/members'
-    | '/moments'
     | '/operations'
     | '/privacy'
     | '/terms'
@@ -351,6 +350,7 @@ export interface FileRouteTypes {
     | '/admin/applications/$id'
     | '/admin/circles/$id'
     | '/admin/circles/new'
+    | '/portraits/$coupleId/$role'
     | '/admin/applications/'
     | '/admin/circles/'
   fileRoutesById: FileRoutesById
@@ -363,10 +363,10 @@ export interface RootRouteChildren {
   CircleRoute: typeof CircleRoute
   LoginRoute: typeof LoginRoute
   MembersRoute: typeof MembersRouteWithChildren
-  MomentsRoute: typeof MomentsRoute
   OperationsRoute: typeof OperationsRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  PortraitsCoupleIdRoleRoute: typeof PortraitsCoupleIdRoleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -418,13 +418,6 @@ declare module '@tanstack/react-router' {
       path: '/members'
       fullPath: '/members'
       preLoaderRoute: typeof MembersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/moments': {
-      id: '/moments'
-      path: '/moments'
-      fullPath: '/moments'
-      preLoaderRoute: typeof MomentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/operations': {
@@ -567,6 +560,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCirclesNewRouteImport
       parentRoute: typeof AdminCirclesRoute
     }
+    '/portraits/$coupleId/$role': {
+      id: '/portraits/$coupleId/$role'
+      path: '/portraits/$coupleId/$role'
+      fullPath: '/portraits/$coupleId/$role'
+      preLoaderRoute: typeof PortraitsCoupleIdRoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -648,10 +648,10 @@ const rootRouteChildren: RootRouteChildren = {
   CircleRoute: CircleRoute,
   LoginRoute: LoginRoute,
   MembersRoute: MembersRouteWithChildren,
-  MomentsRoute: MomentsRoute,
   OperationsRoute: OperationsRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  PortraitsCoupleIdRoleRoute: PortraitsCoupleIdRoleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

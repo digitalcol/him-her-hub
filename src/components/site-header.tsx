@@ -5,7 +5,6 @@ import { lockMember } from "@/lib/member-session";
 import { lockOperations } from "@/lib/operations-lock";
 
 const PUBLIC_LINKS = [
-  { to: "/moments", label: "Moments" },
   { to: "/apply", label: "Waitlist" },
   { to: "/about", label: "About" },
 ] as const;
