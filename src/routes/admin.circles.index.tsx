@@ -32,7 +32,7 @@ function Circles() {
         </p>
         <ul className="mt-3 divide-y divide-line border-y border-line">
           {dates.items.map((item) => (
-            <li key={`${item.kind}-${item.name}`} className="flex items-baseline justify-between gap-6 py-3 text-sm">
+            <li key={`${item.kind}-${item.name}-${item.label}`} className="flex items-baseline justify-between gap-6 py-3 text-sm">
               <span className="text-fg">
                 {item.name}
                 <span className="ml-2 text-muted">{item.kind}</span>

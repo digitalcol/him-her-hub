@@ -883,11 +883,10 @@ export const comingUp = createServerFn({ method: "GET" }).handler(async () => {
   const items: { kind: "Birthday" | "Anniversary"; name: string; label: string; days: number }[] = [];
   const missing: { name: string; problem: string }[] = [];
   for (const person of people) {
-    const name = [person.first_name, person.last_name].filter(Boolean).join(" ");
-    const label = `${name} · ${person.couple}`;
+    const name = person.first_name;
     const next = person.dob ? nextDate(person.dob) : null;
-    if (next) items.push({ kind: "Birthday", name: label, label: next.label, days: next.days });
-    else missing.push({ name: label, problem: person.dob ? `Birthday could not be read (${person.dob})` : "No birthday" });
+    if (next) items.push({ kind: "Birthday", name, label: next.label, days: next.days });
+    else missing.push({ name: [person.first_name, person.last_name].filter(Boolean).join(" "), problem: person.dob ? `Birthday could not be read (${person.dob})` : "No birthday" });
   }
   for (const couple of couplesWithDates) {
     const next = couple.anniversary ? nextDate(couple.anniversary) : null;
