@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { assignCouple, addExpense, getCircle, markKittyPaid, moveCouple, removeCouple, setWhatsApp } from "@/lib/club-api";
+import { assignCouple, addExpense, getCircle, markKittyPaid, moveCouple, removeCouple, setCoupleLogin, setWhatsApp } from "@/lib/club-api";
 import { ReviewPortrait } from "@/components/review-portrait";
 
 export const Route = createFileRoute("/admin/circles/$id")({
@@ -121,6 +121,34 @@ function CircleDetail() {
                   Remove
                 </button>
               </div>
+              <form
+                className="mt-3 flex flex-wrap items-end gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const form = new FormData(event.currentTarget);
+                  void run(() =>
+                    setCoupleLogin({
+                      data: {
+                        coupleId: member.id,
+                        username: String(form.get("username") ?? ""),
+                        password: String(form.get("password") ?? ""),
+                      },
+                    }),
+                  );
+                }}
+              >
+                <label className="text-sm text-muted">
+                  Username
+                  <input name="username" defaultValue={member.login?.username ?? ""} className="mt-1 block border border-line bg-bg px-3 py-2 text-fg" autoComplete="off" />
+                </label>
+                <label className="text-sm text-muted">
+                  Password
+                  <input name="password" defaultValue={member.login?.password ?? ""} className="mt-1 block border border-line bg-bg px-3 py-2 text-fg" autoComplete="off" />
+                </label>
+                <button type="submit" className="h-11 text-sm font-medium text-fg">
+                  Save login
+                </button>
+              </form>
               {circle.others.length > 0 ? (
                 <form
                   className="mt-2 flex flex-wrap items-center gap-3"

@@ -15,12 +15,17 @@ function Login() {
     event.preventDefault();
     setNote(null);
     setPending(true);
-    const email = String(new FormData(event.currentTarget).get("email") ?? "");
+    const form = new FormData(event.currentTarget);
     try {
-      await signInMember({ data: { email } });
-      window.location.assign("/members");
+      await signInMember({
+        data: {
+          username: String(form.get("username") ?? ""),
+          password: String(form.get("password") ?? ""),
+        },
+      });
+      window.location.assign("/members/circle");
     } catch (caught) {
-      setNote(caught instanceof Error ? caught.message : "That email is not in a Circle yet.");
+      setNote(caught instanceof Error ? caught.message : "That username or password is not right.");
       setPending(false);
     }
   }
@@ -29,11 +34,15 @@ function Login() {
     <main className="mx-auto w-full max-w-md px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Members</p>
       <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg">Sign in.</h1>
-      <p className="mt-4 text-base text-pretty text-soft">Use an email from your form. You will only see your own Circle.</p>
+      <p className="mt-4 text-base text-pretty text-soft">The username and password for your Circle.</p>
       <form className="mt-10 space-y-4" onSubmit={onSubmit}>
         <label className="block text-sm text-fg">
-          Email
-          <input className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base text-fg" name="email" type="email" required autoComplete="username" />
+          Username
+          <input className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base text-fg" name="username" required autoComplete="username" />
+        </label>
+        <label className="block text-sm text-fg">
+          Password
+          <input className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base text-fg" name="password" type="password" required autoComplete="current-password" />
         </label>
         <button type="submit" className="bg-fg px-5 py-3 text-sm font-medium text-bg" disabled={pending}>
           Sign in

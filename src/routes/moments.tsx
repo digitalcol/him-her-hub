@@ -18,16 +18,17 @@ function Moments() {
       </h1>
       <a
         href={IG_URL}
-        className="group mt-6 inline-flex items-center gap-2 text-sm font-medium text-fg"
+        className="group mt-6 inline-flex items-center gap-2 text-base font-medium text-fg"
         target="_blank"
         rel="noreferrer"
       >
-        {IG_HANDLE}
+        Instagram
         <ArrowUpRight
           className="size-4 text-accent transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
           aria-hidden="true"
         />
       </a>
+      <p className="mt-2 text-sm text-muted">{IG_HANDLE}</p>
       <ul className="mt-8 grid grid-cols-3 gap-1 sm:grid-cols-4 lg:grid-cols-6">
         {moments.map((moment) => (
           <li key={moment.src}>

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { moments } from "@/lib/club";
+import { IG_URL, moments } from "@/lib/club";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -114,10 +114,17 @@ function Home() {
                 </p>
                 <p className="mt-1 text-base font-medium tracking-tight text-pretty text-fg lg:mt-3 lg:text-lg">{path.title}</p>
                 <p className="mt-1 text-sm text-pretty text-muted lg:mt-2">{path.body}</p>
-                <Link to={path.to} className="group mt-2 inline-flex items-center gap-2 text-sm font-medium text-fg lg:mt-4">
-                  {path.cta}
-                  <ArrowUpRight className="size-4 text-accent" aria-hidden="true" />
-                </Link>
+                {path.k === "02" ? (
+                  <a href={IG_URL} target="_blank" rel="noreferrer" className="group mt-2 inline-flex items-center gap-2 text-sm font-medium text-fg lg:mt-4">
+                    Instagram
+                    <ArrowUpRight className="size-4 text-accent" aria-hidden="true" />
+                  </a>
+                ) : (
+                  <Link to={path.to} className="group mt-2 inline-flex items-center gap-2 text-sm font-medium text-fg lg:mt-4">
+                    {path.cta}
+                    <ArrowUpRight className="size-4 text-accent" aria-hidden="true" />
+                  </Link>
+                )}
               </div>
             ))}
           </div>

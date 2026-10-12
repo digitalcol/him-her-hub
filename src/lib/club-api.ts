@@ -113,9 +113,16 @@ async function ready() {
   assertActor();
   const sql = await getSql();
   await sql`alter table application_assets add column if not exists body text`;
+  await sql`create table if not exists couple_logins (
+    couple_id text primary key references couples (id),
+    username text not null unique,
+    password_hash text not null,
+    password_sealed text not null
+  )`;
   await seed(sql);
   await removeRamSita(sql);
   await ensureOrionRoster(sql);
+  await mergePunmiya(sql);
   await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
   if (isPreviewMode() && dbSource === "pglite") {
     await sql`insert into expenses (id, circle_id, amount, note, status)
@@ -229,6 +236,91 @@ async function removeRamSita(sql: Sql) {
   await sql`delete from people where couple_id = 'ram-sita'`;
   await sql`delete from circle_memberships where couple_id = 'ram-sita'`;
   await sql`delete from couples where id = 'ram-sita'`;
+}
+
+async function mergePunmiya(sql: Sql) {
+  const sources = await sql<{
+    id: string;
+    name: string;
+    area: string;
+    about: string;
+    interests: string;
+    referral: string | null;
+    anniversary: string | null;
+    photo_consent: boolean;
+    organise: string | null;
+  }>`
+    select id, name, area, about, interests, referral, anniversary, photo_consent, organise
+    from couples
+    where id <> 'orion-divya-goutham' and lower(name) like '%punmiya%'
+  `;
+  if (sources.length === 0) return;
+  const target = "orion-divya-goutham";
+  const seated = await sql<{ id: string }>`select id from couples where id = ${target}`;
+  if (!seated[0]) return;
+  for (const source of sources) {
+    const incoming = await sql<{
+      id: string;
+      first_name: string;
+      last_name: string;
+      profession: string | null;
+      instagram: string | null;
+      phone: string | null;
+      email: string | null;
+      dob: string | null;
+    }>`
+      select id, first_name, last_name, profession, instagram, phone, email, dob
+      from people where couple_id = ${source.id} order by id
+    `;
+    const roster = await sql<{ id: string; first_name: string }>`
+      select id, first_name from people where couple_id = ${target} order by id
+    `;
+    const divya = incoming.find((person) => person.first_name.toLowerCase().startsWith("div")) ?? incoming[1];
+    const other = incoming.find((person) => person !== divya) ?? incoming[0];
+    const rosterDivya = roster.find((person) => person.first_name.toLowerCase().startsWith("div")) ?? roster[0];
+    const rosterOther = roster.find((person) => person.id !== rosterDivya?.id);
+    const write = async (
+      slot: { id: string } | undefined,
+      person: (typeof incoming)[number] | undefined,
+    ) => {
+      if (!slot || !person) return;
+      await sql`update people
+        set first_name = ${person.first_name},
+            last_name = ${person.last_name},
+            profession = ${person.profession},
+            instagram = ${person.instagram},
+            phone = ${person.phone},
+            email = ${person.email},
+            dob = ${person.dob}
+        where id = ${slot.id}`;
+    };
+    await write(rosterDivya, divya);
+    await write(rosterOther, other);
+    const left = [divya?.first_name, divya?.last_name].filter(Boolean).join(" ");
+    const right = [other?.first_name, other?.last_name].filter(Boolean).join(" ");
+    const name = left && right ? `${left} & ${right}` : source.name;
+    await sql`update couples
+      set name = ${name},
+          area = ${source.area},
+          about = ${source.about},
+          interests = ${source.interests},
+          referral = ${source.referral},
+          anniversary = ${source.anniversary},
+          photo_consent = ${source.photo_consent},
+          organise = ${source.organise},
+          status = 'ASSIGNED',
+          updated_at = now()
+      where id = ${target}`;
+    await sql`delete from application_assets where couple_id = ${target}`;
+    await sql`update application_assets set couple_id = ${target} where couple_id = ${source.id}`;
+    await sql`delete from availability where couple_id = ${source.id}`;
+    await sql`delete from contributions where couple_id = ${source.id}`;
+    await sql`delete from admin_notes where couple_id = ${source.id}`;
+    await sql`delete from couple_logins where couple_id = ${source.id}`;
+    await sql`delete from people where couple_id = ${source.id}`;
+    await sql`delete from circle_memberships where couple_id = ${source.id}`;
+    await sql`delete from couples where id = ${source.id}`;
+  }
 }
 
 function keptPhoto(key: string) {
@@ -725,7 +817,89 @@ async function loadCircle(sql: Sql, id: string) {
 
 export const getCircle = createServerFn({ method: "GET" })
   .validator((data: { id: string }) => data)
-  .handler(async ({ data }) => loadCircle(await readyOps(), data.id));
+  .handler(async ({ data }) => {
+    const sql = await readyOps();
+    const circle = await loadCircle(sql, data.id);
+    const { openPassword } = await import("@/lib/couple-login.server");
+    const logins = await sql<{ couple_id: string; username: string; password_sealed: string }>`
+      select l.couple_id, l.username, l.password_sealed
+      from couple_logins l
+      join circle_memberships m on m.couple_id = l.couple_id
+      where m.circle_id = ${data.id} and m.status = 'ACTIVE'
+    `;
+    const byId = new Map(logins.map((row) => [row.couple_id, { username: row.username, password: openPassword(row.password_sealed) }]));
+    return {
+      ...circle,
+      members: circle.members.map((member) => ({ ...member, login: byId.get(member.id) ?? null })),
+    };
+  });
+
+export const setCoupleLogin = createServerFn({ method: "POST" })
+  .validator((data: { coupleId: string; username: string; password: string }) => data)
+  .handler(async ({ data }) => {
+    const sql = await readyOps();
+    if (!canMutateOperations(actorForRequest())) throw new Error("Not allowed.");
+    const username = data.username.trim().toLowerCase();
+    const password = data.password.trim();
+    if (!/^[a-z0-9._-]{3,40}$/.test(username)) throw new Error("Use a short username: letters, numbers, dots.");
+    if (password.length < 4 || password.length > 80) throw new Error("The password needs at least 4 characters.");
+    const seated = await sql<{ id: string }>`
+      select couple_id as id from circle_memberships where couple_id = ${data.coupleId} and status = 'ACTIVE' limit 1
+    `;
+    if (!seated[0]) throw new Error("That couple is not in a Circle.");
+    const { hashPassword, sealPassword } = await import("@/lib/couple-login.server");
+    await sql`insert into couple_logins (couple_id, username, password_hash, password_sealed)
+      values (${data.coupleId}, ${username}, ${hashPassword(password)}, ${sealPassword(password)})
+      on conflict (couple_id) do update set
+        username = excluded.username,
+        password_hash = excluded.password_hash,
+        password_sealed = excluded.password_sealed`;
+    return { ok: true };
+  });
+
+export const comingUp = createServerFn({ method: "GET" }).handler(async () => {
+  const sql = await readyOps();
+  const birthdays = await sql<{ name: string; who: string; dob: string }>`
+    select c.name, p.first_name as who, p.dob
+    from people p
+    join couples c on c.id = p.couple_id
+    join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
+    where p.dob is not null and p.dob <> ''
+  `;
+  const anniversaries = await sql<{ name: string; anniversary: string }>`
+    select c.name, c.anniversary
+    from couples c
+    join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
+    where c.anniversary is not null and c.anniversary <> ''
+  `;
+  const items = [
+    ...birthdays.map((row) => ({ kind: "Birthday" as const, name: row.who || row.name, when: row.dob })),
+    ...anniversaries.map((row) => ({ kind: "Anniversary" as const, name: row.name, when: row.anniversary })),
+  ]
+    .map((item) => {
+      const next = nextDate(item.when);
+      return next ? { ...item, ...next } : null;
+    })
+    .filter((item): item is { kind: "Birthday" | "Anniversary"; name: string; when: string; label: string; days: number } => item !== null)
+    .sort((a, b) => a.days - b.days);
+  return items.slice(0, 12);
+});
+
+function nextDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return null;
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let next = new Date(now.getFullYear(), month - 1, day);
+  if (Number.isNaN(next.getTime())) return null;
+  if (next < today) next = new Date(now.getFullYear() + 1, month - 1, day);
+  const days = Math.round((next.getTime() - today.getTime()) / 86400000);
+  const label = next.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  return { label, days };
+}
 
 export const assignCouple = createServerFn({ method: "POST" })
   .validator((data: { circleId: string; coupleId: string }) => data)

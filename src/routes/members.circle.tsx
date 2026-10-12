@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
 import { ReviewPortrait } from "@/components/review-portrait";
 import { memberHome } from "@/lib/club-api";
+import { changeOwnPassword } from "@/lib/member-session";
 
 export const Route = createFileRoute("/members/circle")({
   head: () => ({ meta: [{ title: "Your Circle · Him·Her·Hub" }, { name: "robots", content: "noindex" }] }),
@@ -11,6 +13,26 @@ export const Route = createFileRoute("/members/circle")({
 function MemberCircle() {
   const { circle, events } = Route.useLoaderData();
   const next = events[0];
+  const [passwordNote, setPasswordNote] = useState<string | null>(null);
+
+  async function onPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordNote(null);
+    const form = new FormData(event.currentTarget);
+    try {
+      await changeOwnPassword({
+        data: {
+          current: String(form.get("current") ?? ""),
+          next: String(form.get("next") ?? ""),
+        },
+      });
+      setPasswordNote("Password changed.");
+      event.currentTarget.reset();
+    } catch (caught) {
+      setPasswordNote(caught instanceof Error ? caught.message : "The password could not be changed.");
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-14 lg:px-10">
       <p className="text-xs tracking-index text-muted uppercase">Circle</p>
@@ -95,6 +117,21 @@ function MemberCircle() {
           </span>
         </p>
       ) : null}
+      <form className="mt-12 max-w-md space-y-3" onSubmit={onPassword}>
+        <p className="text-xs tracking-index text-muted uppercase">Password</p>
+        <label className="block text-sm text-fg">
+          Current password
+          <input name="current" type="password" required autoComplete="current-password" className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base" />
+        </label>
+        <label className="block text-sm text-fg">
+          New password
+          <input name="next" type="password" required autoComplete="new-password" className="mt-2 w-full border border-line bg-bg px-3 py-3 text-base" />
+        </label>
+        <button type="submit" className="h-11 bg-fg px-4 text-sm font-medium text-bg">
+          Change password
+        </button>
+        {passwordNote ? <p className="text-sm text-soft">{passwordNote}</p> : null}
+      </form>
     </main>
   );
 }

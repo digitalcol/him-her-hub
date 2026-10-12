@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { WORDMARK } from "@/lib/club";
+import { lockMember } from "@/lib/member-session";
 import { lockOperations } from "@/lib/operations-lock";
 
 const PUBLIC_LINKS = [
@@ -65,9 +66,13 @@ export function SiteHeader() {
             <button type="button" className="inline-flex h-11 items-center px-2 text-sm text-fg" onClick={() => void leave(lockOperations)}>
               Log out
             </button>
+          ) : zone === "members" ? (
+            <button type="button" className="hidden h-11 items-center px-2 text-sm text-fg lg:inline-flex" onClick={() => void leave(lockMember)}>
+              Log out
+            </button>
           ) : (
-            <Link to={zone === "members" ? "/" : "/members/circle"} className="hidden h-11 items-center px-2 text-sm text-fg lg:inline-flex">
-              {zone === "members" ? "Public" : "Members"}
+            <Link to="/members/circle" className="hidden h-11 items-center px-2 text-sm text-fg lg:inline-flex">
+              Members
             </Link>
           )}
           <button
@@ -99,9 +104,13 @@ export function SiteHeader() {
             <button type="button" className="block py-3 text-left text-2xl font-medium tracking-tight text-fg" onClick={() => void leave(lockOperations)}>
               Log out
             </button>
+          ) : zone === "members" ? (
+            <button type="button" className="block py-3 text-left text-2xl font-medium tracking-tight text-fg" onClick={() => void leave(lockMember)}>
+              Log out
+            </button>
           ) : (
-            <Link to={zone === "members" ? "/" : "/members/circle"} className="block py-3 text-2xl font-medium tracking-tight text-fg" onClick={() => setOpen(false)}>
-              {zone === "members" ? "Public" : "Members"}
+            <Link to="/members/circle" className="block py-3 text-2xl font-medium tracking-tight text-fg" onClick={() => setOpen(false)}>
+              Members
             </Link>
           )}
         </nav>
