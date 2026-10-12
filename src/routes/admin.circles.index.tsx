@@ -27,18 +27,33 @@ function Circles() {
       </Link>
       <section className="mt-10">
         <p className="text-xs tracking-index text-muted uppercase">Coming up</p>
-        {dates.length === 0 ? <p className="mt-3 text-sm text-muted">Birthdays and anniversaries appear once a form has a date.</p> : null}
+        <p className="mt-3 text-sm text-muted">
+          {dates.items.filter((item) => item.kind === "Birthday").length} birthdays · {dates.items.filter((item) => item.kind === "Anniversary").length} anniversaries
+        </p>
         <ul className="mt-3 divide-y divide-line border-y border-line">
-          {dates.map((item) => (
-            <li key={`${item.kind}-${item.name}-${item.label}`} className="flex items-baseline justify-between gap-4 py-3 text-sm">
+          {dates.items.map((item) => (
+            <li key={`${item.kind}-${item.name}`} className="flex items-baseline justify-between gap-6 py-3 text-sm">
               <span className="text-fg">
                 {item.name}
                 <span className="ml-2 text-muted">{item.kind}</span>
               </span>
-              <span className="text-muted">{item.days === 0 ? "Today" : item.label}</span>
+              <span className="shrink-0 text-muted">{item.days === 0 ? "Today" : item.label}</span>
             </li>
           ))}
         </ul>
+        {dates.missing.length > 0 ? (
+          <>
+            <p className="mt-8 text-xs tracking-index text-muted uppercase">Missing or not readable</p>
+            <ul className="mt-3 divide-y divide-line border-y border-line">
+              {dates.missing.map((item) => (
+                <li key={`${item.name}-${item.problem}`} className="flex items-baseline justify-between gap-6 py-3 text-sm">
+                  <span className="text-fg">{item.name}</span>
+                  <span className="shrink-0 text-[#b42318]">{item.problem}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </section>
       <ul className="mt-10 divide-y divide-line border-y border-line">
         {rows.map((row) => (

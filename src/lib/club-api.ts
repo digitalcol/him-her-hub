@@ -859,30 +859,43 @@ export const setCoupleLogin = createServerFn({ method: "POST" })
 
 export const comingUp = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await readyOps();
-  const birthdays = await sql<{ name: string; who: string; dob: string }>`
-    select c.name, p.first_name as who, p.dob
+  const people = await sql<{ couple: string; first_name: string; last_name: string; dob: string | null }>`
+    select c.name as couple, p.first_name, p.last_name, p.dob
     from people p
     join couples c on c.id = p.couple_id
     join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
-    where p.dob is not null and p.dob <> ''
+    where exists (
+      select 1 from people filled
+      where filled.couple_id = c.id and filled.email is not null and filled.email <> ''
+    )
+    order by c.name, p.id
   `;
-  const anniversaries = await sql<{ name: string; anniversary: string }>`
+  const couplesWithDates = await sql<{ name: string; anniversary: string | null }>`
     select c.name, c.anniversary
     from couples c
     join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
-    where c.anniversary is not null and c.anniversary <> ''
+    where exists (
+      select 1 from people filled
+      where filled.couple_id = c.id and filled.email is not null and filled.email <> ''
+    )
+    order by c.name
   `;
-  const items = [
-    ...birthdays.map((row) => ({ kind: "Birthday" as const, name: row.who || row.name, when: row.dob })),
-    ...anniversaries.map((row) => ({ kind: "Anniversary" as const, name: row.name, when: row.anniversary })),
-  ]
-    .map((item) => {
-      const next = nextDate(item.when);
-      return next ? { ...item, ...next } : null;
-    })
-    .filter((item): item is { kind: "Birthday" | "Anniversary"; name: string; when: string; label: string; days: number } => item !== null)
-    .sort((a, b) => a.days - b.days);
-  return items.slice(0, 12);
+  const items: { kind: "Birthday" | "Anniversary"; name: string; label: string; days: number }[] = [];
+  const missing: { name: string; problem: string }[] = [];
+  for (const person of people) {
+    const name = [person.first_name, person.last_name].filter(Boolean).join(" ");
+    const label = `${name} · ${person.couple}`;
+    const next = person.dob ? nextDate(person.dob) : null;
+    if (next) items.push({ kind: "Birthday", name: label, label: next.label, days: next.days });
+    else missing.push({ name: label, problem: person.dob ? `Birthday could not be read (${person.dob})` : "No birthday" });
+  }
+  for (const couple of couplesWithDates) {
+    const next = couple.anniversary ? nextDate(couple.anniversary) : null;
+    if (next) items.push({ kind: "Anniversary", name: couple.name, label: next.label, days: next.days });
+    else missing.push({ name: couple.name, problem: couple.anniversary ? `Anniversary could not be read (${couple.anniversary})` : "No anniversary" });
+  }
+  items.sort((a, b) => a.days - b.days || a.name.localeCompare(b.name));
+  return { items, missing };
 });
 
 function nextDate(value: string) {
