@@ -178,10 +178,9 @@
 
 @media (min-width: 1024px) {
   .home-stage {
-    grid-template-columns: 1.35fr 0.9fr;
+    grid-template-columns: minmax(0, 1fr);
     min-height: 0;
     flex: 1;
-    gap: 2.5rem;
   }
 }
 
