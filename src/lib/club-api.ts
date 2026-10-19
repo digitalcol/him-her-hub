@@ -123,6 +123,7 @@ async function ready() {
   await removeRamSita(sql);
   await ensureOrionRoster(sql);
   await mergePunmiya(sql);
+  await ensureOrionBills(sql);
   await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
   if (isPreviewMode() && dbSource === "pglite") {
     await sql`insert into expenses (id, circle_id, amount, note, status)
@@ -320,6 +321,18 @@ async function mergePunmiya(sql: Sql) {
     await sql`delete from people where couple_id = ${source.id}`;
     await sql`delete from circle_memberships where couple_id = ${source.id}`;
     await sql`delete from couples where id = ${source.id}`;
+  }
+}
+
+async function ensureOrionBills(sql: Sql) {
+  const bills = [
+    ["orion-bill-lalit", 23569, "Event hosted by Lalit", "2026-04-16T00:00:00.000Z"],
+    ["orion-bill-gautam", 6806, "Event hosted by Gautam", "2026-10-16T00:00:00.000Z"],
+  ] as const;
+  for (const [id, amount, note, at] of bills) {
+    await sql`insert into expenses (id, circle_id, amount, note, status, created_at)
+      select ${id}, 'orion', ${amount}, ${note}, 'APPROVED', ${at}
+      where not exists (select 1 from expenses where id = ${id})`;
   }
 }
 
