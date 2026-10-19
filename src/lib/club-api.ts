@@ -124,6 +124,7 @@ async function ready() {
   await ensureOrionRoster(sql);
   await mergePunmiya(sql);
   await ensureOrionBills(sql);
+  await ensureCoupleLogins(sql);
   await sql`update circles set whatsapp_url = null where whatsapp_url = ${"https://wa.me/"}`;
   if (isPreviewMode() && dbSource === "pglite") {
     await sql`insert into expenses (id, circle_id, amount, note, status)
@@ -325,14 +326,52 @@ async function mergePunmiya(sql: Sql) {
 }
 
 async function ensureOrionBills(sql: Sql) {
+  const hosted = async (coupleId: string, fallback: string) => {
+    const people = await sql<{ first_name: string }>`select first_name from people where couple_id = ${coupleId} order by id`;
+    const names = people.map((person) => person.first_name).filter(Boolean).join(" & ");
+    return names ? `Event hosted by ${names}` : fallback;
+  };
   const bills = [
-    ["orion-bill-lalit", 23569, "Event hosted by Lalit", "2026-04-16T00:00:00.000Z"],
-    ["orion-bill-gautam", 6806, "Event hosted by Gautam", "2026-10-16T00:00:00.000Z"],
+    ["orion-bill-lalit", 23569, "orion-priyanka-lalit", "Event hosted by Lalit", "2026-04-16T00:00:00.000Z"],
+    ["orion-bill-gautam", 6806, "orion-divya-goutham", "Event hosted by Gautam", "2026-10-16T00:00:00.000Z"],
   ] as const;
-  for (const [id, amount, note, at] of bills) {
+  for (const [id, amount, coupleId, fallback, at] of bills) {
+    const note = await hosted(coupleId, fallback);
     await sql`insert into expenses (id, circle_id, amount, note, status, created_at)
       select ${id}, 'orion', ${amount}, ${note}, 'APPROVED', ${at}
       where not exists (select 1 from expenses where id = ${id})`;
+    await sql`update expenses set note = ${note} where id = ${id}`;
+  }
+}
+
+async function ensureCoupleLogins(sql: Sql) {
+  const people = await sql<{ couple_id: string; first_name: string }>`
+    select p.couple_id, p.first_name
+    from people p
+    join circle_memberships m on m.couple_id = p.couple_id and m.status = 'ACTIVE'
+    order by p.id
+  `;
+  const byCouple = new Map<string, string[]>();
+  for (const person of people) {
+    const names = byCouple.get(person.couple_id) ?? [];
+    if (person.first_name) names.push(person.first_name);
+    byCouple.set(person.couple_id, names);
+  }
+  const { hashPassword, sealPassword } = await import("@/lib/couple-login.server");
+  for (const [coupleId, names] of byCouple) {
+    const her = names[0];
+    const him = names[1] ?? names[0];
+    if (!her || !him) continue;
+    const username = him.toLowerCase().replace(/[^a-z0-9._-]/g, "");
+    const password = her.toLowerCase().replace(/[^a-z0-9._-]/g, "");
+    if (username.length < 3 || password.length < 3) continue;
+    const existing = await sql<{ couple_id: string }>`select couple_id from couple_logins where couple_id = ${coupleId}`;
+    if (existing[0]) continue;
+    const taken = await sql<{ couple_id: string }>`select couple_id from couple_logins where username = ${username}`;
+    if (taken[0]) continue;
+    await sql`insert into couple_logins (couple_id, username, password_hash, password_sealed)
+      values (${coupleId}, ${username}, ${hashPassword(password)}, ${sealPassword(password)})
+      on conflict (couple_id) do nothing`;
   }
 }
 
@@ -724,11 +763,27 @@ export const listCircles = createServerFn({ method: "GET" }).handler(async () =>
     select couple_id, username, password_sealed from couple_logins
   `;
   const byId = new Map(logins.map((row) => [row.couple_id, { username: row.username, password: openPassword(row.password_sealed) }]));
+  const firstNames = await sql<{ couple_id: string; first_name: string }>`
+    select p.couple_id, p.first_name
+    from people p
+    join circle_memberships m on m.couple_id = p.couple_id and m.status = 'ACTIVE'
+    order by p.id
+  `;
+  const shortName = new Map<string, string[]>();
+  for (const person of firstNames) {
+    const names = shortName.get(person.couple_id) ?? [];
+    if (person.first_name) names.push(person.first_name);
+    shortName.set(person.couple_id, names);
+  }
   return circles.map((circle) => ({
     ...circle,
     members: seated
       .filter((member) => member.circle_id === circle.id)
-      .map((member) => ({ ...member, login: byId.get(member.id) ?? null })),
+      .map((member) => ({
+        ...member,
+        name: shortName.get(member.id)?.join(" & ") || member.name,
+        login: byId.get(member.id) ?? null,
+      })),
   }));
 });
 
@@ -783,10 +838,7 @@ async function loadCircle(sql: Sql, id: string) {
       if (asset.role !== "one" && asset.role !== "two" && asset.role !== "together") continue;
       portraits[asset.role] = `/portraits/${member.id}/${asset.role}`;
     }
-    const titled =
-      partners.length === 2 && partners.some((person) => person.last_name)
-        ? partners.map((person) => [person.first_name, person.last_name].filter(Boolean).join(" ")).join(" & ")
-        : member.name;
+    const titled = partners.length === 2 ? partners.map((person) => person.first_name).filter(Boolean).join(" & ") : member.name;
     dressed.push({
       ...member,
       name: titled,
@@ -879,8 +931,8 @@ export const setCoupleLogin = createServerFn({ method: "POST" })
 
 export const comingUp = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await readyOps();
-  const people = await sql<{ couple: string; first_name: string; last_name: string; dob: string | null }>`
-    select c.name as couple, p.first_name, p.last_name, p.dob
+  const people = await sql<{ couple_id: string; couple: string; first_name: string; last_name: string; dob: string | null }>`
+    select c.id as couple_id, c.name as couple, p.first_name, p.last_name, p.dob
     from people p
     join couples c on c.id = p.couple_id
     join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
@@ -888,10 +940,10 @@ export const comingUp = createServerFn({ method: "GET" }).handler(async () => {
       select 1 from people filled
       where filled.couple_id = c.id and filled.email is not null and filled.email <> ''
     )
-    order by c.name, p.id
+    order by p.id
   `;
-  const couplesWithDates = await sql<{ name: string; anniversary: string | null }>`
-    select c.name, c.anniversary
+  const couplesWithDates = await sql<{ id: string; name: string; anniversary: string | null }>`
+    select c.id, c.name, c.anniversary
     from couples c
     join circle_memberships m on m.couple_id = c.id and m.status = 'ACTIVE'
     where exists (
@@ -900,6 +952,12 @@ export const comingUp = createServerFn({ method: "GET" }).handler(async () => {
     )
     order by c.name
   `;
+  const shortName = new Map<string, string[]>();
+  for (const person of people) {
+    const names = shortName.get(person.couple_id) ?? [];
+    if (person.first_name) names.push(person.first_name);
+    shortName.set(person.couple_id, names);
+  }
   const items: { kind: "Birthday" | "Anniversary"; name: string; label: string; days: number }[] = [];
   const missing: { name: string; problem: string }[] = [];
   for (const person of people) {
@@ -909,9 +967,10 @@ export const comingUp = createServerFn({ method: "GET" }).handler(async () => {
     else missing.push({ name: [person.first_name, person.last_name].filter(Boolean).join(" "), problem: person.dob ? `Birthday could not be read (${person.dob})` : "No birthday" });
   }
   for (const couple of couplesWithDates) {
+    const coupleName = shortName.get(couple.id)?.join(" & ") || couple.name;
     const next = couple.anniversary ? nextDate(couple.anniversary) : null;
-    if (next) items.push({ kind: "Anniversary", name: couple.name, label: next.label, days: next.days });
-    else missing.push({ name: couple.name, problem: couple.anniversary ? `Anniversary could not be read (${couple.anniversary})` : "No anniversary" });
+    if (next) items.push({ kind: "Anniversary", name: coupleName, label: next.label, days: next.days });
+    else missing.push({ name: coupleName, problem: couple.anniversary ? `Anniversary could not be read (${couple.anniversary})` : "No anniversary" });
   }
   items.sort((a, b) => a.days - b.days || a.name.localeCompare(b.name));
   return { items, missing };
